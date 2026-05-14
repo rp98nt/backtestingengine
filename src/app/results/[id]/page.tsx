@@ -46,8 +46,16 @@ export default function BacktestResultPage({
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 text-slate-100">
       <p className="text-sm text-slate-400">
+        <Link href="/results" className="text-blue-400 hover:underline">
+          All runs
+        </Link>
+        {" · "}
+        <Link href="/backtest" className="text-blue-400 hover:underline">
+          Backtest hub
+        </Link>
+        {" · "}
         <Link href="/strategy" className="text-blue-400 hover:underline">
-          ← Strategy
+          Strategy
         </Link>
       </p>
       <h1 className="text-2xl font-semibold">Backtest result</h1>

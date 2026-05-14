@@ -54,6 +54,22 @@ class BacktestRunResultResponse(BaseModel):
     engine_metrics: dict[str, Any]
 
 
+class BacktestRunSummary(BaseModel):
+    backtest_id: str
+    status: str
+    strategy: str
+    symbol_key: str
+    created_at: str
+    fill_model: str | None = None
+    total_return: float | None = None
+    compare_role: str | None = None
+
+
+class BacktestRunsListResponse(BaseModel):
+    runs: list[BacktestRunSummary]
+    total_count: int
+
+
 class BacktestCompareRequest(BaseModel):
     strategy: str = Field(default="sma_crossover")
     symbols: list[str] = Field(default_factory=list)

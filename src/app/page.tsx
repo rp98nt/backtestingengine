@@ -21,6 +21,18 @@ export default function Home() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
+            href="/backtest"
+            className="rounded-lg border border-slate-600 px-5 py-2.5 font-medium hover:bg-slate-900"
+          >
+            Backtest hub
+          </Link>
+          <Link
+            href="/results"
+            className="rounded-lg border border-slate-600 px-5 py-2.5 font-medium hover:bg-slate-900"
+          >
+            Saved runs
+          </Link>
+          <Link
             href="/benchmark"
             className="rounded-lg border border-violet-600/80 px-5 py-2.5 font-medium text-violet-200 hover:bg-violet-950/50"
           >

@@ -72,6 +72,14 @@ export default function StrategyPage() {
             Home
           </Link>
           {" · "}
+          <Link href="/backtest" className="text-blue-400 hover:underline">
+            Backtest hub
+          </Link>
+          {" · "}
+          <Link href="/results" className="text-blue-400 hover:underline">
+            All runs
+          </Link>
+          {" · "}
           <Link href="/data" className="text-blue-400 hover:underline">
             Data Manager
           </Link>

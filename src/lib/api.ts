@@ -136,3 +136,28 @@ export async function runBenchmark(body: BacktestRunBody): Promise<{
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+export async function fetchBacktestRuns(
+  limit = 50,
+  offset = 0,
+): Promise<{
+  runs: {
+    backtest_id: string;
+    status: string;
+    strategy: string;
+    symbol_key: string;
+    created_at: string;
+    fill_model: string | null;
+    total_return: number | null;
+    compare_role: string | null;
+  }[];
+  total_count: number;
+}> {
+  const q = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const r = await fetch(`${base}/api/backtest/runs?${q}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

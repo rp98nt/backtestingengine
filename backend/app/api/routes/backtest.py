@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -14,7 +14,9 @@ from app.schemas import (
     BacktestCompareResponse,
     BacktestRunRequest,
     BacktestRunResultResponse,
+    BacktestRunsListResponse,
     BacktestRunStartResponse,
+    BacktestRunSummary,
 )
 from app.services.backtest_bars import load_market_events
 from app.services.backtest_runner import (
@@ -212,6 +214,59 @@ async def compare_fills(
         probabilistic_result=prob_view,
         comparison=cmp_metrics,
     )
+
+
+@router.get("/runs", response_model=BacktestRunsListResponse)
+async def list_backtest_runs(
+    session: AsyncSession = Depends(get_session),
+    limit: int = 50,
+    offset: int = 0,
+) -> BacktestRunsListResponse:
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+
+    count_q = select(func.count()).select_from(BacktestRun)
+    total = int((await session.execute(count_q)).scalar_one())
+
+    q = (
+        select(BacktestRun)
+        .order_by(BacktestRun.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = (await session.execute(q)).scalars().all()
+
+    out: list[BacktestRunSummary] = []
+    for row in rows:
+        cfg = row.request_config or {}
+        fill_model = cfg.get("fill_model")
+        if isinstance(fill_model, str):
+            fm: str | None = fill_model
+        else:
+            fm = None
+        compare_role = cfg.get("compare_role")
+        cr = compare_role if isinstance(compare_role, str) else None
+        total_ret: float | None = None
+        if row.result and isinstance(row.result, dict):
+            pm = row.result.get("performance_metrics")
+            if isinstance(pm, dict):
+                tr = pm.get("total_return")
+                if isinstance(tr, (int, float)):
+                    total_ret = float(tr)
+        out.append(
+            BacktestRunSummary(
+                backtest_id=str(row.id),
+                status=row.status,
+                strategy=row.strategy,
+                symbol_key=row.symbol_key,
+                created_at=row.created_at.isoformat() if row.created_at else "",
+                fill_model=fm,
+                total_return=total_ret,
+                compare_role=cr,
+            )
+        )
+
+    return BacktestRunsListResponse(runs=out, total_count=total)
 
 
 @router.get("/result/{backtest_id}", response_model=BacktestRunResultResponse)

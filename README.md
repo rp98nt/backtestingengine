@@ -3,7 +3,7 @@
 Low-latency event-driven backtesting thesis stack: **Next.js** (UI) + **FastAPI** (API) + **Neon PostgreSQL** (data).  
 Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_SPECIFICATION.md).
 
-**Chunk 1:** CSV import → Neon (`instruments`, `ohlcv_bars`) → Data Manager (`/data`) and paginated OHLCV table (`/data/[symbol]/table`).
+**Chunk 1:** CSV import → Neon (`instruments`, `ohlcv_bars`) → Data Manager (`/data`) with **close-price sparklines** (chart preview via `GET /api/data/ohlcv/{symbol}`) and paginated OHLCV table (`/data/[symbol]/table`). Global **`SiteNav`** in the root layout links all primary routes.
 
 **Chunk 2:** Event engine (ring buffer, naive / probabilistic fills, SMA crossover) → `POST /api/backtest/run` persists to Neon (`backtest_runs`) → Strategy runner (`/strategy`), results detail (`/results/[id]`), run index (`/results` via `GET /api/backtest/runs`), and **Backtest hub** (`/backtest`). The run endpoint completes the backtest in the same request (no background worker yet); the row is created first with `running`, then updated to `completed` or `failed`.
 

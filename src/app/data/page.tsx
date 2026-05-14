@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { SymbolSparkline } from "@/components/SymbolSparkline";
 import {
   fetchInstruments,
   importInstrumentCsv,
@@ -133,6 +134,9 @@ export default function DataManagerPage() {
 
       <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6 shadow">
         <h2 className="mb-4 text-lg font-medium">Loaded instruments</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Close-price preview (last ~200 bars) via <code className="text-slate-400">GET /api/data/ohlcv/{"{symbol}"}</code> — SECTION 0.A chart preview.
+        </p>
         {loading ? (
           <p className="text-slate-400">Loading…</p>
         ) : instruments.length === 0 ? (
@@ -144,12 +148,17 @@ export default function DataManagerPage() {
                 key={i.symbol}
                 className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
-                <div>
-                  <p className="font-semibold">{i.symbol}</p>
-                  <p className="text-sm text-slate-400">{i.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {i.start_date} → {i.end_date} · {i.total_bars} bars
-                  </p>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{i.symbol}</p>
+                    <p className="text-sm text-slate-400">{i.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {i.start_date} → {i.end_date} · {i.total_bars} bars
+                    </p>
+                  </div>
+                  <div className="shrink-0 rounded border border-slate-800/80 bg-slate-950/50 px-2 py-1">
+                    <SymbolSparkline symbol={i.symbol} />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Link

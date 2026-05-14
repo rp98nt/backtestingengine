@@ -27,6 +27,29 @@ export async function importInstrumentCsv(
   return r.json();
 }
 
+export async function fetchInstrumentOhlcv(
+  symbol: string,
+  limit = 500,
+): Promise<{
+  symbol: string;
+  data: {
+    timestamp: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  }[];
+}> {
+  const q = new URLSearchParams({ limit: String(Math.min(limit, 5000)) });
+  const r = await fetch(
+    `${base}/api/data/ohlcv/${encodeURIComponent(symbol)}?${q}`,
+    { cache: "no-store" },
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function fetchInstrumentOhlcvTable(
   symbol: string,
   limit = 100,

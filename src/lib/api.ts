@@ -165,6 +165,7 @@ export async function runBenchmark(body: BacktestRunBody): Promise<{
   standard_queue: Record<string, number>;
   speedup_factor: number;
   latency_reduction_pct: number;
+  cpp_native_mvp?: Record<string, unknown> | null;
 }> {
   const r = await apiFetch("/api/benchmark/run", {
     method: "POST",

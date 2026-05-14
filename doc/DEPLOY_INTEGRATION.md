@@ -61,7 +61,8 @@ Heavy routes (`/api/backtest/compare-fills`, `/api/benchmark/run`) can exceed **
 
 | File | Purpose |
 |------|---------|
-| `backend/Dockerfile` | Production-style API image |
+| `backend/Dockerfile` | API image (installs `native_ext`, sets `USE_NATIVE_ENGINE=1`) |
+| `backend/native_ext/` | C++17 `engine_native` (pybind11); `pip install ./native_ext` from `backend/` |
 | `render.yaml` | Optional Render Blueprint for the API |
 | `docker-compose.yml` | Optional local API via Docker |
 | `src/app/api/backend/[[...path]]/route.ts` | Vercel → FastAPI proxy |
@@ -70,4 +71,8 @@ Heavy routes (`/api/backtest/compare-fills`, `/api/benchmark/run`) can exceed **
 
 ## See also
 
-Optional **native (C++) engine** roadmap (MVP: ring + event loop; DB in Python): **`doc/ALPHA_TEST_SPECIFICATION.md` — SECTION 0.B**. Use the `- [ ]` lines as GitHub Issues (label e.g. `native-engine`).
+- **Full native roadmap / remaining checklists:** `doc/ALPHA_TEST_SPECIFICATION.md` → **SECTION 0.B**.
+
+**Shipped C++ MVP:** `backend/native_ext` builds the **`engine_native`** pybind11 module (ring buffer + bounded-deque burst microbench). The API **Dockerfile** compiles it and sets **`USE_NATIVE_ENGINE=1`**. Locally, from `backend/`: `pip install ./native_ext` (requires a **C++17** toolchain, e.g. MSVC Build Tools on Windows or `build-essential` on Linux). Set **`USE_NATIVE_ENGINE=false`** in `backend/.env` to omit the `cpp_native_mvp` block from `POST /api/benchmark/run` responses.
+
+Use remaining `- [ ]` items in SECTION 0.B as GitHub Issues (label e.g. `native-engine`).

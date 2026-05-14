@@ -37,6 +37,13 @@ app.include_router(live_router, prefix="/api")
 
 
 @app.get("/api/health")
-async def health(session: AsyncSession = Depends(get_session)) -> dict[str, str]:
+async def health(session: AsyncSession = Depends(get_session)) -> dict[str, str | bool | None]:
+    from app import native_bridge
+
     await session.execute(text("SELECT 1"))
-    return {"status": "ok", "database": "connected"}
+    return {
+        "status": "ok",
+        "database": "connected",
+        "native_engine_loaded": native_bridge.is_native_extension_loaded(),
+        "use_native_engine": settings.use_native_engine,
+    }

@@ -93,6 +93,8 @@ class BenchmarkRunResponse(BaseModel):
     standard_queue: dict[str, float]
     speedup_factor: float
     latency_reduction_pct: float
+    # C++ Contribution-1 MVP microbench (optional; see app.native_bridge + USE_NATIVE_ENGINE).
+    cpp_native_mvp: dict[str, Any] | None = None
 
 
 class LiveStartRequest(BaseModel):

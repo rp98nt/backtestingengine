@@ -92,8 +92,11 @@ Then open `http://127.0.0.1:8000/docs` to confirm the API.
    py -3.12 -m venv .venv
    .\.venv\Scripts\Activate.ps1
    pip install -r requirements.txt
+   pip install ./native_ext
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
+
+   `pip install ./native_ext` builds the optional **C++ `engine_native`** module (skip if no C++ toolchain; set `USE_NATIVE_ENGINE=false` in `backend/.env`).
 
 Health check (includes DB round-trip): `GET http://127.0.0.1:8000/api/health`
 

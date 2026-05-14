@@ -19,5 +19,11 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Build native engine (Contribution-1 C++ MVP)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential
+          pip install ./native_ext
+          python -c "import engine_native; print(engine_native.version())"
       - name: Byte-compile
         run: python -m compileall -q app

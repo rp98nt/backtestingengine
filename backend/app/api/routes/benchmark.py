@@ -3,8 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_session
 from app.engine.ring_buffer import RingBuffer, StandardQueueWrapper
+from app import native_bridge
 from app.schemas import BacktestRunRequest, BenchmarkRunResponse
 from app.services.backtest_bars import load_market_events
 from app.services.backtest_runner import run_sma_crossover
@@ -68,9 +70,41 @@ async def benchmark_run(
     speedup = (s_lat / r_lat) if r_lat > 1e-9 else 1.0
     lat_red_pct = ((s_lat - r_lat) / s_lat * 100.0) if s_lat > 1e-9 else 0.0
 
+    cpp_native_mvp: dict | None = None
+    if settings.use_native_engine:
+        bursts, burst_sz = native_bridge.derive_cpp_burst_params(
+            int(res_rb.ring_buffer_total_puts),
+            len(events),
+        )
+        entry: dict = {
+            "enabled": True,
+            "extension_loaded": native_bridge.is_native_extension_loaded(),
+            "workload": {
+                "bursts": bursts,
+                "burst_size": burst_sz,
+                "capacity": 4096,
+                "derived_from_python_total_puts": int(res_rb.ring_buffer_total_puts),
+            },
+        }
+        if native_bridge.is_native_extension_loaded():
+            try:
+                entry["results"] = native_bridge.run_cpp_burst_benchmark(
+                    bursts, burst_sz, 4096
+                )
+            except Exception as e:  # pragma: no cover
+                entry["error"] = str(e)
+                entry["results"] = None
+        else:
+            entry["error"] = "engine_native extension not built or not on PYTHONPATH"
+            entry["results"] = None
+        cpp_native_mvp = entry
+    else:
+        cpp_native_mvp = None
+
     return BenchmarkRunResponse(
         ring_buffer=ring,
         standard_queue=std,
         speedup_factor=float(speedup),
         latency_reduction_pct=float(lat_red_pct),
+        cpp_native_mvp=cpp_native_mvp,
     )

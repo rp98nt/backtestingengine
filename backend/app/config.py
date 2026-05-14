@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     # Read from env DATABASE_URL (Neon). Empty → database.py raises at import with instructions.
     database_url: str = ""
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # When true, POST /api/benchmark/run attaches C++ microbench if `engine_native` is installed.
+    use_native_engine: bool = True
 
 
 settings = Settings()

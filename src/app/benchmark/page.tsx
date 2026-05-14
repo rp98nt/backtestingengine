@@ -87,6 +87,22 @@ export default function BenchmarkPage() {
     1,
   );
 
+  const cpp = result?.cpp_native_mvp as
+    | {
+        extension_loaded?: boolean;
+        workload?: Record<string, unknown>;
+        results?: {
+          ring?: Record<string, number>;
+          queue?: Record<string, number>;
+          speedup_factor?: number;
+          latency_reduction_pct?: number;
+          implementation?: string;
+        };
+        error?: string;
+      }
+    | null
+    | undefined;
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 text-slate-100">
       <header className="space-y-2">
@@ -110,6 +126,11 @@ export default function BenchmarkPage() {
           <strong className="text-slate-300">queue.Queue</strong> — and compares dequeue
           latency and throughput from{" "}
           <code className="rounded bg-slate-900 px-1 text-xs">POST /api/benchmark/run</code>.
+          When the API is built with the optional <strong className="text-slate-300">engine_native</strong>{" "}
+          extension and <code className="text-slate-500">USE_NATIVE_ENGINE</code> is on, the same
+          response includes a <strong className="text-slate-300">C++ microbench</strong> (native ring
+          vs native bounded deque) sized from the Python run&apos;s event volume — methodology note
+          in the panel below.
         </p>
       </header>
 
@@ -375,6 +396,106 @@ export default function BenchmarkPage() {
               </div>
             </div>
           </section>
+
+          {cpp && (
+            <section className="rounded-xl border border-amber-800/50 bg-amber-950/20 p-6">
+              <h2 className="mb-2 text-lg font-medium text-amber-100">
+                C++ native MVP (Contribution 1 microbench)
+              </h2>
+              <p className="mb-4 text-xs text-amber-200/90">
+                Synthetic burst workload in compiled code — <strong>not</strong> the same code path
+                as the Python SMA run above. It is sized from this run&apos;s{" "}
+                <code className="text-amber-100/80">total_puts</code> to keep scale comparable for
+                committee narrative; see spec SECTION 0.B.
+              </p>
+              {!cpp.extension_loaded && (
+                <p className="text-sm text-amber-300">
+                  Extension not loaded. From <code className="text-xs">backend/</code>:{" "}
+                  <code className="text-xs">pip install ./native_ext</code> (requires a C++17
+                  toolchain). Set <code className="text-xs">USE_NATIVE_ENGINE=false</code> in{" "}
+                  <code className="text-xs">backend/.env</code> to hide this panel&apos;s data.
+                </p>
+              )}
+              {cpp.error && (
+                <p className="text-sm text-red-300">Native bench error: {cpp.error}</p>
+              )}
+              {cpp.workload && (
+                <pre className="mb-4 overflow-x-auto rounded border border-amber-900/40 bg-slate-950/80 p-3 text-xs text-slate-300">
+                  {JSON.stringify(cpp.workload, null, 2)}
+                </pre>
+              )}
+              {cpp.results?.ring && cpp.results?.queue && (
+                <>
+                  <p className="mb-2 text-center text-sm text-amber-100">
+                    Native speedup (avg <code>get()</code>-style dequeue){" "}
+                    <span className="font-mono text-lg font-semibold text-white">
+                      {(cpp.results.speedup_factor ?? 1).toFixed(2)}×
+                    </span>
+                    <span className="text-slate-400">
+                      {" "}
+                      (~{(cpp.results.latency_reduction_pct ?? 0).toFixed(1)}% lower mean vs deque
+                      baseline)
+                    </span>
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-lg border border-amber-700/40 bg-slate-950/50 p-4">
+                      <h3 className="text-xs font-medium uppercase text-amber-300">C++ ring</h3>
+                      <dl className="mt-2 space-y-1 text-sm">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Avg latency</dt>
+                          <dd className="font-mono">
+                            {formatNs(cpp.results.ring.avg_latency_ns ?? 0)}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Wall time</dt>
+                          <dd className="font-mono">
+                            {(cpp.results.ring.total_time_ms ?? 0).toFixed(2)} ms
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Throughput</dt>
+                          <dd className="font-mono">
+                            {(cpp.results.ring.throughput_events_per_sec ?? 0).toFixed(0)} evt/s
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                    <div className="rounded-lg border border-slate-600 bg-slate-900/60 p-4">
+                      <h3 className="text-xs font-medium uppercase text-slate-400">
+                        C++ bounded deque
+                      </h3>
+                      <dl className="mt-2 space-y-1 text-sm">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Avg latency</dt>
+                          <dd className="font-mono">
+                            {formatNs(cpp.results.queue.avg_latency_ns ?? 0)}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Wall time</dt>
+                          <dd className="font-mono">
+                            {(cpp.results.queue.total_time_ms ?? 0).toFixed(2)} ms
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-slate-500">Throughput</dt>
+                          <dd className="font-mono">
+                            {(cpp.results.queue.throughput_events_per_sec ?? 0).toFixed(0)} evt/s
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                  {cpp.results.implementation && (
+                    <p className="mt-3 text-center text-xs text-slate-500">
+                      {cpp.results.implementation}
+                    </p>
+                  )}
+                </>
+              )}
+            </section>
+          )}
 
           <p className="text-xs text-slate-500">
             Single-threaded CPython: absolute nanoseconds vary by machine. The comparison

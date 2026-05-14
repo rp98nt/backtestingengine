@@ -318,27 +318,31 @@ SECTION 0.B — OPTIONAL NATIVE (C++) ENGINE HOT PATH (POST–DEFENCE / EXTENSIO
 ═══════════════════════════════════════════════════════════════════
 
 STATUS
-  **DEFER / EXTENSION.** The **canonical shipped implementation** for defence and
-  core features remains the **Python** engine (`backend/app/engine/`, including the
-  real list-backed `RingBuffer` and `StandardQueueWrapper` per SECTION 3 and the
-  FINAL INSTRUCTION). This section defines an **optional** phased migration of
-  **Contribution 1’s hottest slice** into **C++** while keeping **Neon I/O and
-  persistence in Python** (SQLAlchemy / FastAPI) for incremental risk.
+  **MVP SHIPPED (CONTRIBUTION-1 MICROBENCH).** The repo builds a pybind11 extension
+  **`engine_native`** under `backend/native_ext/` (C++17 ring buffer + bounded-deque
+  burst loop, `std::chrono` dequeue timing). When `USE_NATIVE_ENGINE` is true (default
+  in `backend/Dockerfile`; override in `backend/.env`), `POST /api/benchmark/run` attaches
+  **`cpp_native_mvp`** alongside the existing **Python** ring vs `queue.Queue` comparison.
+  The **Python** engine (`backend/app/engine/`) remains the **canonical** source for SMA
+  backtest numbers, persistence, and defence acceptance; full native **strategy parity**
+  is still **DEFER** (phases below).
 
 MVP SCOPE — “C++ RING + EVENT LOOP ONLY; DB IN PYTHON”
-  - **Inside C++ (MVP):** fixed-capacity ring buffer matching SECTION 3 semantics
-    (power-of-two capacity, head/tail, bitmask indexing, full/empty rules); tight
-    **event dispatch loop** (dequeue → dispatch by event kind). Latency counters
-    remain comparable to `time.perf_counter_ns()`-style accounting (C++
-    `std::chrono::nanoseconds` or equivalent) so benchmark narratives stay honest.
-  - **Stays in Python:** OHLCV and instrument **reads from Neon**, CSV import,
-    request validation, **writing** `backtest_runs` / result payloads, CORS, route
-    wiring. Python **marshals** bar batches into the native layer and **maps**
-    returned structures onto existing persistence and JSON response shapes.
+  - **Shipped in C++ (MVP):** power-of-two ring buffer + single-thread **burst event loop**
+    (put waves then drain) + bounded `std::deque` baseline; metrics aligned with Python
+    ring metrics shape (`avg_latency_ns`, throughput from wall time, put/get counts).
+  - **Stays in Python:** OHLCV reads from Neon, CSV import, `BacktestingEngine` SMA path,
+    persistence, `cpp_native_mvp` **workload sizing** derived from the Python run’s
+    `ring_buffer_total_puts` (see `app/native_bridge.py`).
 
 RATIONALE
   - Isolates **language-boundary** cost vs **microstructure** wins without rewriting
-    the entire backend. Parity tests (below) gate flipping a runtime flag.
+    the entire backend. Parity tests (below) gate flipping additional native surfaces.
+
+SHIPPED VS CHECKLIST (ANTI-REDUNDANCY)
+  - Phases **N1 (core)** and **N3 (wiring)** are **partially satisfied** by `engine_native`
+    + `native_bridge.py` + benchmark route + Benchmark UI methodology panel. Remaining
+    `- [ ]` items are still **required** for full thesis-grade native engine parity.
 
 GITHUB ISSUES
   Each `- [ ]` item MAY become a GitHub Issue; suggested label: `native-engine`.
@@ -350,41 +354,33 @@ PHASE N0 — RESEARCH & GUARDRAILS
   - [ ] Write **parity contract** doc (inline in Issue or ADR pointer): float ε,
         deterministic seeds for probabilistic fills **while those modules remain
         in Python** in MVP.
-  - [ ] Select FFI: **pybind11** (preferred) vs C ABI + `ctypes`; list target
-        matrices (Render Linux prod, Windows dev).
+  - [x] Select FFI: **pybind11** — locked for `backend/native_ext`.
 
 PHASE N1 — C++ CORE LIBRARY (NO NEON, NO FASTAPI)
-  - [ ] CMake project under `native/engine_core/` (path locked at implementation).
-  - [ ] Implement `RingBuffer` + unit tests (Catch2 or GoogleTest) mirroring Python
-        edge cases (wrap, full, empty, metrics).
-  - [ ] Standalone micro-benchmark executable; capture ns/op for `get`/`put`.
+  - [x] Ring buffer + bounded deque + burst driver in `backend/native_ext/src/engine_native.cpp`.
+  - [ ] Standalone C++ unit tests (Catch2 / GoogleTest) for wrap/full/empty edge cases.
+  - [ ] Standalone micro-benchmark executable (optional; CI uses `import engine_native` smoke).
 
 PHASE N2 — C++ EVENT LOOP SKELETON
-  - [ ] Port control flow from `backtesting_engine.py` into C++ ( dequeue loop,
-        empty-buffer termination, equity sampling hooks as no-ops initially).
-  - [ ] Feed golden **MarketEvent** sequence from file fixture; assert deterministic
-        dequeue order.
+  - [ ] Port **full** control flow from `backtesting_engine.py` (MARKET/SIGNAL/ORDER/FILL)
+        into C++ with callouts or batch boundary per SECTION 0.B original plan.
+  - [ ] Golden **MarketEvent** fixture parity vs Python dequeue order.
 
 PHASE N3 — PYTHON ↔ C++ MVP WIRING (DB STILL PYTHON)
-  - [ ] pybind11 module: e.g. `run_native_event_replay(config, bars) -> dict` with
-        stable schema agreed with `schemas.py`.
-  - [ ] Python service loads bars via existing async DB layer, builds numpy/polars
-        or raw buffers, invokes native replay, persists results using current
-        SQLAlchemy paths.
-  - [ ] Env flag `USE_NATIVE_ENGINE` default **0**; log branch at start of run.
+  - [x] pybind11 module **`engine_native`** exposing `burst_benchmark_pair(bursts, burst_size, capacity)`.
+  - [x] `app/native_bridge.py` + `USE_NATIVE_ENGINE` + `POST /api/benchmark/run` **`cpp_native_mvp`** field.
+  - [ ] `run_native_event_replay(config, bars) -> dict` for result shapes matching `schemas.py` (DEFER).
 
 PHASE N4 — PARITY, REGRESSION, BENCHMARK STORY
-  - [ ] CI test: fixed seed + SMA + subset of bars → Python engine vs native MVP
-        outputs within ε (equity length, trade count, final PnL band—tighten over time).
-  - [ ] Extend `POST /api/benchmark/run` **or** add `POST /api/benchmark/native-micro`
-        so **Python ring vs Python queue** (existing thesis UI) is **not** silently
-        replaced by a cross-language comparison; any new hero metric ships with
-        methodology copy in the Benchmark UI.
+  - [ ] CI test: fixed seed + SMA subset → Python vs native **equity** within ε.
+  - [x] `POST /api/benchmark/run` keeps **Python ring vs Python queue** as primary cards;
+        C++ panel is **separate** with methodology copy (Benchmark page).
+  - [ ] Optional dedicated `POST /api/benchmark/native-micro` if payload size becomes an issue.
 
 PHASE N5 — PACKAGING & OPS
-  - [ ] Manylinux wheel build OR API Docker multi-stage (compiler image → runtime).
-  - [ ] GitHub Action builds extension on `ubuntu-latest`; optional Windows matrix.
-  - [ ] Document install fallbacks in `doc/DEPLOY_INTEGRATION.md` (non-normative).
+  - [x] API `Dockerfile` compiles `native_ext` on Debian slim (`build-essential`).
+  - [x] GitHub Action `backend-check` builds extension on `ubuntu-latest`.
+  - [x] `doc/DEPLOY_INTEGRATION.md` + README mention native build / `USE_NATIVE_ENGINE`.
 
 PHASE N6+ — POST-MVP (OPTIONAL; REQUIRES SPEC AMENDMENT PER SUB-ITEM)
   - [ ] Move `ExecutionHandler` + fill models into C++ with shared RNG policy vs Python.

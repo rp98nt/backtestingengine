@@ -67,3 +67,7 @@ Heavy routes (`/api/backtest/compare-fills`, `/api/benchmark/run`) can exceed **
 | `src/app/api/backend/[[...path]]/route.ts` | Vercel → FastAPI proxy |
 | `src/lib/apiBase.ts` | Chooses direct URL vs proxy vs localhost |
 | `src/lib/api.ts` | All UI API calls |
+
+## See also
+
+Optional **native (C++) engine** roadmap (MVP: ring + event loop; DB in Python): **`doc/ALPHA_TEST_SPECIFICATION.md` — SECTION 0.B**. Use the `- [ ]` lines as GitHub Issues (label e.g. `native-engine`).

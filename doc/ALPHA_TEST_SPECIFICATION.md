@@ -14,15 +14,15 @@ SECTION 0 — DOCUMENT AUTHORITY, AMENDED STACK, DEPLOYMENT, DATA POLICY
 ═══════════════════════════════════════════════════════════════════
 
 SINGLE SOURCE OF TRUTH (SSOT)
-  - This file, `doc/ALPHA_TEST_SPECIFICATION.md`, is the sole authoritative
-    specification for the AlphaTest application. Planning, implementation,
-    reviews, and deployment MUST trace back to clauses in this document.
-  - Do NOT create any other Markdown (`.md`) files in this repository —
-    neither at the repo root nor inside `doc/` beside this file —
-    including but not limited to README.md, CONTRIBUTING.md, ADRs,
-    changelog MDC copies, etc. Narrative onboarding, prerequisites, demo
-    walkthrough, references, etc. MUST live only inside this document’s
-    later sections (e.g. SECTION 9 as canonical prose).
+  - **Normative scope:** `doc/ALPHA_TEST_SPECIFICATION.md` is the sole authority for
+    AlphaTest **behaviour**, **thesis claims**, **API/UI contracts**, **engine
+    semantics**, and **acceptance** (incl. SECTION 0.A defence). Planning and code
+    review MUST trace back to clauses herein.
+  - **Non-normative adjuncts** (hosting commands, env var cheat-sheets, Render/Vercel
+    wiring) MAY exist as `README.md` and `doc/DEPLOY_INTEGRATION.md`. They MUST NOT
+    contradict SECTION 0–0.A for defence delivery and MUST defer product truth to
+    this document. Optional **native (C++) engine** phasing lives in **SECTION 0.B**
+    (checklists suitable for GitHub Issues).
 
 AMENDED TECHNOLOGY & PLATFORM (SUPERSEDES INLINE STALE REFERENCES ELSEWHERE)
   - FRONTEND: **Next.js** (recommended: App Router with TypeScript `.tsx`).
@@ -38,7 +38,8 @@ AMENDED TECHNOLOGY & PLATFORM (SUPERSEDES INLINE STALE REFERENCES ELSEWHERE)
     separate host/process (Railway, Fly.io, Render, Docker/VPS, or similar) behind
     a stable HTTPS/WSS URL. The implementation phase MUST document operational
     env vars (DB URL, CORS, WS origins) only inside this specification when
-    planning is finalized; no extra `.md`.
+    planning is finalized; **operational env summaries** MAY duplicate short tables
+    in `README.md` / `doc/DEPLOY_INTEGRATION.md` per SECTION 0 SSOT.
   - METADATA DATABASE: **Neon PostgreSQL** accessed via SQLAlchemy (and an
     asynchronous driver suited to FastAPI workloads, e.g. `asyncpg` + Neon’s
     connection string). Persist metadata, instruments registry, optional job/run
@@ -297,7 +298,8 @@ POST-DEFENCE EXPANSION
 ───────────────────────────────────────────────────────────────────
 
   Re-enable DEFER items incrementally; optionally add Parquet dual-write, full
-  SECTION 4–5 coverage, and advanced importers—without breaking SECTION 0 SSOT.
+  SECTION 4–5 coverage, advanced importers, and the **optional C++ engine hot path**
+  (SECTION 0.B)—without breaking SECTION 0 SSOT.
 
 ───────────────────────────────────────────────────────────────────
 AMBIGUITIES — RESOLVE WITH OPERATOR IF NEEDED
@@ -312,6 +314,94 @@ AMBIGUITIES — RESOLVE WITH OPERATOR IF NEEDED
      in SECTION 9 onboarding prose when set.
 
 ═══════════════════════════════════════════════════════════════════
+SECTION 0.B — OPTIONAL NATIVE (C++) ENGINE HOT PATH (POST–DEFENCE / EXTENSION)
+═══════════════════════════════════════════════════════════════════
+
+STATUS
+  **DEFER / EXTENSION.** The **canonical shipped implementation** for defence and
+  core features remains the **Python** engine (`backend/app/engine/`, including the
+  real list-backed `RingBuffer` and `StandardQueueWrapper` per SECTION 3 and the
+  FINAL INSTRUCTION). This section defines an **optional** phased migration of
+  **Contribution 1’s hottest slice** into **C++** while keeping **Neon I/O and
+  persistence in Python** (SQLAlchemy / FastAPI) for incremental risk.
+
+MVP SCOPE — “C++ RING + EVENT LOOP ONLY; DB IN PYTHON”
+  - **Inside C++ (MVP):** fixed-capacity ring buffer matching SECTION 3 semantics
+    (power-of-two capacity, head/tail, bitmask indexing, full/empty rules); tight
+    **event dispatch loop** (dequeue → dispatch by event kind). Latency counters
+    remain comparable to `time.perf_counter_ns()`-style accounting (C++
+    `std::chrono::nanoseconds` or equivalent) so benchmark narratives stay honest.
+  - **Stays in Python:** OHLCV and instrument **reads from Neon**, CSV import,
+    request validation, **writing** `backtest_runs` / result payloads, CORS, route
+    wiring. Python **marshals** bar batches into the native layer and **maps**
+    returned structures onto existing persistence and JSON response shapes.
+
+RATIONALE
+  - Isolates **language-boundary** cost vs **microstructure** wins without rewriting
+    the entire backend. Parity tests (below) gate flipping a runtime flag.
+
+GITHUB ISSUES
+  Each `- [ ]` item MAY become a GitHub Issue; suggested label: `native-engine`.
+  Epic titles suggested: `native-n0-guardrails`, `native-n1-core`, … `native-n6plus`.
+
+PHASE N0 — RESEARCH & GUARDRAILS
+  - [ ] Profile representative `POST /api/backtest/run` (`py-spy` / `cProfile`);
+        record % time in `RingBuffer.get`/`put` vs portfolio/strategy/ORM/JSON.
+  - [ ] Write **parity contract** doc (inline in Issue or ADR pointer): float ε,
+        deterministic seeds for probabilistic fills **while those modules remain
+        in Python** in MVP.
+  - [ ] Select FFI: **pybind11** (preferred) vs C ABI + `ctypes`; list target
+        matrices (Render Linux prod, Windows dev).
+
+PHASE N1 — C++ CORE LIBRARY (NO NEON, NO FASTAPI)
+  - [ ] CMake project under `native/engine_core/` (path locked at implementation).
+  - [ ] Implement `RingBuffer` + unit tests (Catch2 or GoogleTest) mirroring Python
+        edge cases (wrap, full, empty, metrics).
+  - [ ] Standalone micro-benchmark executable; capture ns/op for `get`/`put`.
+
+PHASE N2 — C++ EVENT LOOP SKELETON
+  - [ ] Port control flow from `backtesting_engine.py` into C++ ( dequeue loop,
+        empty-buffer termination, equity sampling hooks as no-ops initially).
+  - [ ] Feed golden **MarketEvent** sequence from file fixture; assert deterministic
+        dequeue order.
+
+PHASE N3 — PYTHON ↔ C++ MVP WIRING (DB STILL PYTHON)
+  - [ ] pybind11 module: e.g. `run_native_event_replay(config, bars) -> dict` with
+        stable schema agreed with `schemas.py`.
+  - [ ] Python service loads bars via existing async DB layer, builds numpy/polars
+        or raw buffers, invokes native replay, persists results using current
+        SQLAlchemy paths.
+  - [ ] Env flag `USE_NATIVE_ENGINE` default **0**; log branch at start of run.
+
+PHASE N4 — PARITY, REGRESSION, BENCHMARK STORY
+  - [ ] CI test: fixed seed + SMA + subset of bars → Python engine vs native MVP
+        outputs within ε (equity length, trade count, final PnL band—tighten over time).
+  - [ ] Extend `POST /api/benchmark/run` **or** add `POST /api/benchmark/native-micro`
+        so **Python ring vs Python queue** (existing thesis UI) is **not** silently
+        replaced by a cross-language comparison; any new hero metric ships with
+        methodology copy in the Benchmark UI.
+
+PHASE N5 — PACKAGING & OPS
+  - [ ] Manylinux wheel build OR API Docker multi-stage (compiler image → runtime).
+  - [ ] GitHub Action builds extension on `ubuntu-latest`; optional Windows matrix.
+  - [ ] Document install fallbacks in `doc/DEPLOY_INTEGRATION.md` (non-normative).
+
+PHASE N6+ — POST-MVP (OPTIONAL; REQUIRES SPEC AMENDMENT PER SUB-ITEM)
+  - [ ] Move `ExecutionHandler` + fill models into C++ with shared RNG policy vs Python.
+  - [ ] Move strategy signal path for SMA into C++ or document alternative (Numba).
+  - [ ] Standalone C++ HTTP microservice **only** if profiling proves FFI dominates
+        (second deployable—avoid unless necessary).
+
+RELATIONSHIP TO OTHER SECTIONS
+  - **SECTION 10:** Authoritative **Python full-stack** delivery order; SECTION 0.B
+    forks **after** engine + API contracts are stable and MUST NOT block SECTION 0.A.
+  - **SECTION 3 `RingBuffer` prose:** Normative **observable behaviour**; native code
+    MUST match unless this document is amended with an explicit migration clause.
+  - **CONTRIBUTION 1 (SECTION 1):** Claims remain architectural; C++ is an optional
+    **performance realisation**, not a substitute for the Python reference until
+    parity sign-off.
+
+═══════════════════════════════════════════════════════════════════
 SECTION 1 — PROJECT OVERVIEW & THESIS CONTEXT
 ═══════════════════════════════════════════════════════════════════
 
@@ -323,7 +413,9 @@ CONTRIBUTION 1 — Lock-Free Ring Buffer Event Queue
   of Python's standard Queue. This eliminates lock contention and 
   reduces per-event processing latency. The application must 
   benchmark this against a standard queue-based approach and display 
-  the latency comparison visually.
+  the latency comparison visually. An **optional** high-performance
+  **C++** realisation of the same hot path is defined in **SECTION 0.B**
+  (post-defence; DB and routes remain Python until explicitly migrated).
 
 CONTRIBUTION 2 — Probabilistic Order Fill Simulation Model
   Instead of the naive assumption of filling orders at the next 
@@ -355,10 +447,12 @@ BACKEND:
     `asyncpg`; connection string from `DATABASE_URL`) for **metadata and
     relational state**; Parquet files (via pyarrow) for OHLCV time series
     on disk (large bars / vectorised workloads).
-  - Backtesting Engine: Custom Python implementation 
-    (detailed in Section 4)
-  - Performance Benchmarking: Python time module with 
-    nanosecond precision (time.perf_counter_ns)
+  - Backtesting Engine: Custom **Python** implementation (detailed in Section 4),
+    with an **optional post-defence** native hot path for Contribution 1 per **SECTION 0.B**
+    (C++ ring + event loop MVP; DB remains Python/SQLAlchemy until later phases).
+  - Performance Benchmarking: Python `time` module with nanosecond precision
+    (`time.perf_counter_ns`); native branch MUST document timing methodology separately
+    if mixed-language comparisons are exposed in UI.
   - Dependencies (core; minimise optional tiers):
     fastapi, uvicorn, pandas, numpy, pyarrow, sqlalchemy, asyncpg,
     scipy, python-multipart, aiofiles,
@@ -556,6 +650,12 @@ Python's queue.Queue with the same interface as RingBuffer
 (put, get, is_empty, size, capacity, average_latency_ns) 
 and tracks the same metrics. This is used as the baseline 
 for benchmarking.
+
+NORMATIVE NOTE — NATIVE REALISATION
+  Until SECTION 0.B parity sign-off, the **reference** implementation MUST remain the
+  Python list-backed buffer above. A future **C++** implementation MAY replace the
+  internal storage mechanism while preserving the same **observable semantics**
+  (capacity, errors, metrics); see SECTION 0.B.
 
 --- FILE: backend/engine/fill_models.py ---
 
@@ -1606,9 +1706,9 @@ ROUTE & FILES (Next.js)
   - Route: **`/showcase`** → `web/src/app/showcase/page.tsx` (client
     component boundary as needed for WebSocket).
   - Static copy & speaker bullets: `web/src/showcase/showcaseContent.ts`
-    (TypeScript object export — **no** auxiliary Markdown files; SSOT remains
-    this specification for engineering truth; narrative tuning may
-    duplicate short strings here for UI only).
+    (TypeScript object export for UI strings; engineering truth and acceptance
+    remain in this specification per SECTION 0 SSOT; do not add parallel
+    narrative Markdown files for showcase-only prose).
   - Optional layout wrapper: `web/src/components/showcase/ShowcaseShell.tsx`
     for presentation chrome (max-width, typography ramp).
 
@@ -2030,12 +2130,14 @@ Frontend:
   - Large numbers: 1.2M, 25K
 
 ═══════════════════════════════════════════════════════════════════
-SECTION 9 — ONBOARDING DOCUMENTATION (INLINE ONLY; NO SEPARATE README.md)
+SECTION 9 — ONBOARDING & OPERATIONS (INLINE PRIMARY; README ADJUNCT)
 ═══════════════════════════════════════════════════════════════════
 
 Maintain the following topical coverage as **prose inside this document**
-(expand under this heading at implementation sign-off). Creating
-`README.md` or any sibling `.md` violates SECTION 0 SSOT policy.
+(expand under this heading at implementation sign-off). **Short operational
+duplicates** (install commands, Vercel/Render env tables) MAY appear in `README.md`
+or `doc/DEPLOY_INTEGRATION.md` per SECTION 0 SSOT; they MUST stay consistent with
+this section and MUST NOT redefine engine semantics.
 
 Content checklist (when documentation is filled in here):
 
@@ -2076,7 +2178,9 @@ Content checklist (when documentation is filled in here):
 SECTION 10 — IMPLEMENTATION SEQUENCE
 ═══════════════════════════════════════════════════════════════════
 
-Build the application in exactly this order:
+Build the application in exactly this order for the **Python reference stack**
+(defence + core product). Optional **C++ native engine** work is sequenced in
+**SECTION 0.B** and MUST NOT block the phases below.
 
 PHASE 1 — Engine Core (build and test independently):
   1. events.py
@@ -2125,7 +2229,10 @@ PHASE 4 — Integration and Polish:
   29. Test full end-to-end flow (core pages + thesis showcase presets)
   30. Add loading states and error handling everywhere
   31. Embed operational/onboarding prose into SECTION 9 of this specification
-       (still no auxiliary `.md`)
+       (README/DEPLOY_INTEGRATION may mirror short command blocks per SECTION 0 SSOT)
+
+Optional **native C++ engine** work is **not** part of this sequence until defence
+milestones pass; follow **SECTION 0.B** checklists and GitHub Issues separately.
 
 ═══════════════════════════════════════════════════════════════════
 FINAL INSTRUCTION TO CURSOR AI
@@ -2137,7 +2244,9 @@ or "// TODO". Every function must be fully implemented.
 
 The ring_buffer.py must be a real implementation — not a 
 wrapper around Python's deque or queue. It must use a 
-pre-allocated list and integer head/tail pointers.
+pre-allocated list and integer head/tail pointers until a **C++**
+realisation is accepted under **SECTION 0.B** parity rules; native code
+must then match the same **observable** buffer contract (SECTION 3).
 
 The fill models must actually compute slippage and partial 
 fills — not simulate them with random noise.

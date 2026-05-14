@@ -4,8 +4,6 @@
 #
 # First deploy: set DATABASE_URL in the Render dashboard (Neon asyncpg URL).
 
-databases: []
-
 services:
   - type: web
     name: alphatest-api

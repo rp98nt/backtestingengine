@@ -1,6 +1,21 @@
-const base =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://127.0.0.1:8000";
+import { apiUrl } from "./apiBase";
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const url = apiUrl(path);
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    const proxyHint =
+      typeof process.env.NEXT_PUBLIC_API_BASE_URL === "string" &&
+      process.env.NEXT_PUBLIC_API_BASE_URL.length > 0
+        ? ""
+        : " On Vercel, set server env BACKEND_URL to your FastAPI HTTPS origin (same-origin proxy), or set NEXT_PUBLIC_API_BASE_URL.";
+    if (e instanceof TypeError) {
+      throw new Error(`${e.message} (${url}).${proxyHint}`);
+    }
+    throw e;
+  }
+}
 
 export async function fetchInstruments(): Promise<
   {
@@ -11,7 +26,7 @@ export async function fetchInstruments(): Promise<
     total_bars: number;
   }[]
 > {
-  const r = await fetch(`${base}/api/data/instruments`, { cache: "no-store" });
+  const r = await apiFetch("/api/data/instruments", { cache: "no-store" });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -19,7 +34,7 @@ export async function fetchInstruments(): Promise<
 export async function importInstrumentCsv(
   formData: FormData,
 ): Promise<{ status: string; symbol: string; bars_imported: number }> {
-  const r = await fetch(`${base}/api/data/import-csv`, {
+  const r = await apiFetch("/api/data/import-csv", {
     method: "POST",
     body: formData,
   });
@@ -42,8 +57,8 @@ export async function fetchInstrumentOhlcv(
   }[];
 }> {
   const q = new URLSearchParams({ limit: String(Math.min(limit, 5000)) });
-  const r = await fetch(
-    `${base}/api/data/ohlcv/${encodeURIComponent(symbol)}?${q}`,
+  const r = await apiFetch(
+    `/api/data/ohlcv/${encodeURIComponent(symbol)}?${q}`,
     { cache: "no-store" },
   );
   if (!r.ok) throw new Error(await r.text());
@@ -67,8 +82,8 @@ export async function fetchInstrumentOhlcvTable(
   total_count: number;
 }> {
   const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  const r = await fetch(
-    `${base}/api/data/ohlcv/${encodeURIComponent(symbol)}/table?${q}`,
+  const r = await apiFetch(
+    `/api/data/ohlcv/${encodeURIComponent(symbol)}/table?${q}`,
     { cache: "no-store" },
   );
   if (!r.ok) throw new Error(await r.text());
@@ -88,7 +103,7 @@ export type BacktestRunBody = {
 export async function runBacktest(
   body: BacktestRunBody,
 ): Promise<{ backtest_id: string; status: string }> {
-  const r = await fetch(`${base}/api/backtest/run`, {
+  const r = await apiFetch("/api/backtest/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -111,8 +126,8 @@ export async function fetchBacktestResult(id: string): Promise<{
   trade_log: Record<string, unknown>[];
   engine_metrics: Record<string, unknown>;
 }> {
-  const r = await fetch(
-    `${base}/api/backtest/result/${encodeURIComponent(id)}`,
+  const r = await apiFetch(
+    `/api/backtest/result/${encodeURIComponent(id)}`,
     { cache: "no-store" },
   );
   if (!r.ok) throw new Error(await r.text());
@@ -136,7 +151,7 @@ export async function compareBacktestFills(body: BacktestCompareBody): Promise<{
   probabilistic_result: Record<string, unknown>;
   comparison: Record<string, number>;
 }> {
-  const r = await fetch(`${base}/api/backtest/compare-fills`, {
+  const r = await apiFetch("/api/backtest/compare-fills", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -151,7 +166,7 @@ export async function runBenchmark(body: BacktestRunBody): Promise<{
   speedup_factor: number;
   latency_reduction_pct: number;
 }> {
-  const r = await fetch(`${base}/api/benchmark/run`, {
+  const r = await apiFetch("/api/benchmark/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -180,7 +195,7 @@ export async function fetchBacktestRuns(
     limit: String(limit),
     offset: String(offset),
   });
-  const r = await fetch(`${base}/api/backtest/runs?${q}`, { cache: "no-store" });
+  const r = await apiFetch(`/api/backtest/runs?${q}`, { cache: "no-store" });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -198,7 +213,7 @@ export type LiveStartBody = {
 export async function startLiveSession(
   body: LiveStartBody,
 ): Promise<{ session_id: string; status: string }> {
-  const r = await fetch(`${base}/api/live/start`, {
+  const r = await apiFetch("/api/live/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -212,8 +227,8 @@ export async function getLiveStatus(sessionId: string): Promise<{
   status: string;
   detail: string;
 }> {
-  const r = await fetch(
-    `${base}/api/live/status/${encodeURIComponent(sessionId)}`,
+  const r = await apiFetch(
+    `/api/live/status/${encodeURIComponent(sessionId)}`,
     { cache: "no-store" },
   );
   if (!r.ok) throw new Error(await r.text());
@@ -225,7 +240,7 @@ export async function stopLiveSession(sessionId: string): Promise<{
   status: string;
   detail: string;
 }> {
-  const r = await fetch(`${base}/api/live/stop/${encodeURIComponent(sessionId)}`, {
+  const r = await apiFetch(`/api/live/stop/${encodeURIComponent(sessionId)}`, {
     method: "POST",
   });
   if (!r.ok) throw new Error(await r.text());

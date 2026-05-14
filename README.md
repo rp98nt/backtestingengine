@@ -36,7 +36,21 @@ If you deploy the API behind **strict request time limits** (e.g. some serverles
 
    `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
 
-3. Optional — **`CORS_ORIGINS`** on the API (see `.env.example`): when the UI is on Vercel, list that origin so the browser can call your hosted API.
+3. Optional — **`CORS_ORIGINS`** on the API (see `.env.example`): required only if the browser calls your API **directly** via `NEXT_PUBLIC_API_BASE_URL` from a different origin.
+
+### Deploy UI on Vercel (fixes “Failed to fetch” on `/data`)
+
+The production build must **not** call `http://127.0.0.1:8000` from visitors’ browsers. If **`NEXT_PUBLIC_API_BASE_URL` is unset**, Vercel sets `VERCEL=1` and the app uses a **same-origin proxy** at **`/api/backend/...`**.
+
+In **Vercel → Project → Settings → Environment Variables** (Production):
+
+| Variable | Where | Value |
+|----------|--------|--------|
+| **`BACKEND_URL`** | Next.js (server) | Public **HTTPS** origin of your FastAPI app only, e.g. `https://your-api.example.com` (no `/api` suffix) |
+
+Redeploy after saving. The UI will call `https://<your-vercel-app>/api/backend/api/...` and Next forwards to `BACKEND_URL`.
+
+Alternatively, set **`NEXT_PUBLIC_API_BASE_URL`** to that same API origin and configure **`CORS_ORIGINS`** on FastAPI to include your Vercel URL (browser-direct mode).
 
 ---
 

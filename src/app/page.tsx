@@ -33,6 +33,12 @@ export default function Home() {
             Saved runs
           </Link>
           <Link
+            href="/showcase"
+            className="rounded-lg border border-amber-700/50 bg-amber-950/20 px-5 py-2.5 font-medium text-amber-100 hover:bg-amber-950/40"
+          >
+            Thesis showcase
+          </Link>
+          <Link
             href="/benchmark"
             className="rounded-lg border border-violet-600/80 px-5 py-2.5 font-medium text-violet-200 hover:bg-violet-950/50"
           >

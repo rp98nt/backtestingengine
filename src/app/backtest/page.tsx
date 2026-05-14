@@ -20,6 +20,14 @@ export default function BacktestHubPage() {
       <ul className="space-y-3">
         <li>
           <Link
+            href="/showcase"
+            className="block rounded-xl border border-amber-800/40 bg-amber-950/20 px-5 py-4 font-medium text-amber-100 hover:bg-amber-950/40"
+          >
+            Thesis showcase (guided demo) →
+          </Link>
+        </li>
+        <li>
+          <Link
             href="/strategy"
             className="block rounded-xl border border-blue-800/50 bg-blue-950/30 px-5 py-4 font-medium hover:bg-blue-950/50"
           >

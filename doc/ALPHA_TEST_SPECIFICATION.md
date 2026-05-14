@@ -67,8 +67,8 @@ SAMPLE DATA MODEL (ALWAYS AVAILABLE, ZERO EXTERNAL ACCOUNTS)
     backend (e.g. `backend/data/sample_generator.py` at implementation): given
     symbol keys, seed, dates, approximate volatility/trend knobs, emits Parquet-
     compatible series plausible for testing strategies/benchmark UI.
-    **Charts, backtests, benchmarks, WebSocket demos** MUST behave identically
-    against synthetic data as against real series — differing only by input provenance.
+    **Charts, backtests, benchmarks, and WebSocket demos** MUST behave identically
+    against synthetic vs real series — differing only by input provenance.
   - DATA MANAGER (SECTION 5 § DataManager page): Provide a conspicuous **UI toggle**
     (e.g. “Use deterministic sample OHLCV” vs “Attempt live network fetch”).
     Sample mode invokes the synthetic generator endpoint; offline/no-hassle runs
@@ -203,16 +203,26 @@ REQUIRED — THESIS CONTRIBUTIONS (MUST DEMONSTRATE)
 ───────────────────────────────────────────────────────────────────
 
 C1 — RING BUFFER VS STANDARD QUEUE (REAL MEASUREMENT)
-  REQUIRED: real ring buffer + baseline queue wrapper; real timing via
-  `perf_counter_ns`; `POST /api/benchmark/run`; minimal UI (Benchmark page and/or
-  `/showcase` block) with at least **two comparative metrics** + one **bar chart**.
-  DEFER: optional “latency distribution over time” chart if batch telemetry not ready.
+  REQUIRED: real ring buffer + baseline `queue.Queue` wrapper; timing via
+  `perf_counter_ns` (accumulated per `get()` as in SECTION 3); **`POST /api/benchmark/run`**.
+  **Canonical defence UI — small Benchmark page:** route **`/benchmark`**
+  (`src/app/benchmark/page.tsx`). **Procedure:** (1) Operator selects symbol, optional
+  date range, SMA windows, and `fill_model` — **same JSON body shape** as
+  `POST /api/backtest/run`. (2) **Run benchmark** submits to **`POST /api/benchmark/run`**.
+  (3) Page displays **`ring_buffer` vs `standard_queue`** objects from the response
+  (minimum fields: average latency ns, total time ms, throughput events/sec, total events)
+  plus **≥1** comparative bar chart (latency and/or throughput). Loading and error states
+  required. **`/showcase`** (SECTION 5.x.5) may repeat or deep-link this flow but **must
+  not** be the only surface where C1 is reachable — **`/benchmark`** MUST be linked from
+  the primary navigation or home flow.
+  DEFER: “latency distribution over time” chart; extra hero rows beyond what the small page needs.
 
 C2 — NAIVE VS PROBABILISTIC FILLS (REAL)
   REQUIRED: both models per spec semantics (no random slippage). Defence default
   strategy: **SMA crossover on one imported symbol** (recommend `HDFC`) for a simple
-  story. Comparison via `POST /api/backtest/compare-fills` OR two
-  `POST /api/backtest/run` calls with different `fill_model`.
+  story. Comparison via **`POST /api/backtest/compare-fills`** (preferred) or two
+  `POST /api/backtest/run` calls with different `fill_model`. UI: long-form **`/fillmodel`**
+  (SECTION 5) **or** a compact route such as **`/strategy/compare`** — same API contract.
   DEFER: exhaustive fill analytics beyond a tight comparison panel.
 
 C3 — UNIFIED ARCHITECTURE (REAL + VISUAL)
@@ -230,11 +240,10 @@ REQUIRED — MINIMUM UI ROUTES (NEXT.JS)
   - `/strategy` — **SMA-only** simplified configuration for defence default.
   - `/backtest` — run + progress (prefer WebSocket + async; document if temporary
     synchronous fallback is used only under strict time limits).
-  - `/results` — equity + core metrics + compact trade table; benchmark overlay when
-    `NIFTY50` / `NIFTYBANK` imported.
-  - `/benchmark` **and/or** `/showcase` — must surface C1 demo.
-  - `/showcase` — condensed narrative + three CTAs (see SECTION 5.x, trimmed to
-    defence checklist).
+  - `/results` — equity + core metrics + compact trade table.
+  - `/benchmark` — **required** small Benchmark page for **C1** (procedure under C1 above).
+  - `/showcase` — condensed narrative + three CTAs (SECTION 5.x); supplements defence but
+    does not replace **`/benchmark`** for C1.
 
 DEFER UI: full pairs/mean-reversion builders, heatmaps, full export suite, deep polish.
 
@@ -244,8 +253,8 @@ REQUIRED — MINIMUM API (FASTAPI)  [DEFENCE SUBSET]
 
   REQUIRED: import + instruments + ohlcv + table pagination endpoints above;
   `POST /api/backtest/run` + `GET /api/backtest/result/{id}` (or documented sync return);
-  compare-fills OR dual-run client contract; `POST /api/benchmark/run`; minimal live
-  start/stop/status; at least one WebSocket channel used by the demo.
+  `POST /api/backtest/compare-fills` (or dual-run client); `POST /api/benchmark/run`;
+  minimal live start/stop/status; at least one WebSocket channel used by the demo.
 
 DEFER: optional `GET /api/showcase/presets`, `GET /api/showcase/last-results`, yfinance
   fetch for defence-critical path.
@@ -421,7 +430,7 @@ PROJECT STRUCTURE:
       │   │   ├── strategy/page.tsx
       │   │   ├── backtest/page.tsx
       │   │   ├── results/page.tsx
-      │   │   ├── benchmark/page.tsx
+      │   │   ├── benchmark/page.tsx   # SECTION 0.A C1 small page; optional long-form BenchmarkComparison content here or as tab/modal
       │   │   ├── fillmodel/page.tsx
       │   │   ├── live/page.tsx
       │   │   └── showcase/page.tsx # Thesis / defence walkthrough (SECTION 5.x)
@@ -1403,6 +1412,11 @@ SECTION 4 — Trade Log Table:
 
 --- PAGE: BenchmarkComparison.jsx ---
 
+**Defence minimum vs full page:** SECTION 0.A defines the **small `/benchmark`** page
+(procedure + minimum metrics + one bar chart). This JSX page name is the **full**
+Benchmark Comparison layout for thesis polish; implement **0.A first**, then extend
+here. Row 3 “latency distribution” and extra charts are **DEFER** until the small page is stable.
+
 This page demonstrates Contribution 1 — the ring buffer 
 latency advantage. It is the most technically important 
 page for the thesis.
@@ -1412,7 +1426,8 @@ Layout:
 TOP SECTION — Run Benchmark:
   A button "Run Benchmark Comparison" that calls 
   POST /api/benchmark/run using the last backtest 
-  configuration. Shows a loading state while running.
+  configuration **or** explicit form fields — **same JSON body** as
+  `POST /api/backtest/run` (SECTION 0.A). Shows a loading state while running.
 
 RESULTS SECTION (shown after benchmark completes):
 
@@ -1658,7 +1673,7 @@ SECTION 5.x.3 — Block 3: Objectives & contributions matrix
     **Problem addressed** | **Mechanism / artefact** | **Where in app**
     | **Primary success metric**.
   - **“Where in app”** cells contain internal **Link** navigation to:
-      `/benchmark` (C1), `/fillmodel` (C2), `/live` (C3).
+      `/benchmark` (C1), **`/fillmodel` or `/strategy/compare`** (C2), `/live` (C3).
   - Optional **“Open in new tab”** icon per link.
 
 ───────────────────────────────────────────────────────────────────
@@ -1673,21 +1688,18 @@ SECTION 5.x.4 — Block 4: Integrated system context
 ───────────────────────────────────────────────────────────────────
 SECTION 5.x.5 — Block 5: Contribution 1 scripted demo (ring buffer)
 ───────────────────────────────────────────────────────────────────
-  - Collapsible **“Why measure latency?”** explainer referencing
-    `time.perf_counter_ns` semantics aligned with `ring_buffer.py`
-    (per-get accumulation per original engine spec).
-  - **Preset selector** (dropdown or segmented control) mapping to named
-    payloads (see presets API SECTION 4 `showcase.py` or hardcoded mirror):
-      - `benchmark_small` — fewer bars / symbols, finishes quickly.
-      - `benchmark_standard` — thesis-default depth.
-      - `benchmark_stress` — high event volume (guard rails: must not crash;
-        if buffer growth triggers engine auto-resize path, surface toast).
-  - **Primary CTA:** “Run benchmark (Contribution 1)” →
-    `POST /api/benchmark/run` with selected preset body.
-  - **Inline results panel** after completion: hero latency + throughput cards
-    (reuse `MetricCard` + `BenchmarkBarChart` in compact configuration —
-    at minimum two bars: ring vs standard average latency).
-  - **Secondary CTA:** link to full **Benchmark Comparison** page `/benchmark`.
+  - **Primary measurable path** is SECTION 0.A **`/benchmark`** (small page). This block
+    is the **showcase** narrative: collapsible **“Why measure latency?”** explainer
+    referencing `time.perf_counter_ns` semantics aligned with `ring_buffer.py`.
+  - **Preset selector** (optional; maps to named payloads if `showcase.py` exists or
+    hardcoded mirror): `benchmark_small` | `benchmark_standard` | `benchmark_stress`
+    (stress must not crash; toast on guard-rail events).
+  - **Primary CTA:** “Run benchmark (Contribution 1)” → **`POST /api/benchmark/run`**
+    (same body shape as backtest run) — may open **`/benchmark`** in a new tab or embed
+    compact results per SECTION 0.A C1 minimum (two metric cards + one bar chart).
+  - **Secondary (optional):** expanded multi-chart layout from SECTION 5
+    (BenchmarkComparison) **only** if kept as a modal, sub-route, or second tab on
+    **`/benchmark`** — do not invent a parallel URL that duplicates the same API call.
   - Loading / error states per SECTION 8.
 
 ───────────────────────────────────────────────────────────────────
@@ -1703,7 +1715,7 @@ SECTION 5.x.6 — Block 6: Contribution 2 scripted demo (fill models)
     total return **or** truncated scatter of fill prices with capped points
     for performance.
   - **Phantom gains banner** echoing Fill page semantics once metrics arrive.
-  - **Secondary CTA:** `/fillmodel`.
+  - **Secondary CTA:** **`/fillmodel`** (full page) **or** compact **`/strategy/compare`**.
 
 ───────────────────────────────────────────────────────────────────
 SECTION 5.x.7 — Block 7: Contribution 3 scripted demo (unified architecture)

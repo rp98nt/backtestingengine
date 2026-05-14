@@ -76,3 +76,41 @@ Heavy routes (`/api/backtest/compare-fills`, `/api/benchmark/run`) can exceed **
 **Shipped C++ MVP:** `backend/native_ext` builds the **`engine_native`** pybind11 module (ring buffer + bounded-deque burst microbench). The API **Dockerfile** compiles it and sets **`USE_NATIVE_ENGINE=1`**. Locally, from `backend/`: `pip install ./native_ext` (requires a **C++17** toolchain, e.g. MSVC Build Tools on Windows or `build-essential` on Linux). Set **`USE_NATIVE_ENGINE=false`** in `backend/.env` to omit the `cpp_native_mvp` block from `POST /api/benchmark/run` responses.
 
 Use remaining `- [ ]` items in SECTION 0.B as GitHub Issues (label e.g. `native-engine`).
+
+---
+
+## Defence MVP — operator runbook (SECTION 0.A)
+
+Follow in order. You supply Neon, CSVs, and (for public demo) cloud env vars.
+
+### A. One-time setup
+
+1. **Neon** — Create project; copy URI; use `postgresql+asyncpg://…` in **`backend/.env`** as **`DATABASE_URL`**.
+2. **Local** — Copy `.env.example` → **`backend/.env`** (with `DATABASE_URL`). Copy → **`.env.local`** at repo root: **`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`** (or your public API URL for hosted UI + WebSocket).
+3. **Python 3.12** — From `backend/`: venv, `pip install -r requirements.txt`, optional `pip install ./native_ext` (C++ toolchain). Run **`uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`**.
+4. **Next** — Repo root: `npm install`, `npm run dev`.
+
+### B. Import five symbols
+
+1. Open **`/data`**. Import CSVs for **HDFC**, **ICICI**, **RELIANCE**, **NIFTY50**, **NIFTYBANK** (symbol keys in the dropdown).
+2. Confirm green confirmation after each import; open **View OHLCV table** for at least one symbol.
+
+### C. Demo path (contributions)
+
+1. **`/benchmark`** — Ring vs queue (optional C++ microbench block).
+2. **`/strategy/compare`** — Naive vs probabilistic.
+3. **`/strategy`** → **`/results/[id]`** — SMA backtest outcome.
+4. **`/live`** — **Prepare replay session**, then **Open WebSocket stream**.  
+   **Hosted UI:** set **`NEXT_PUBLIC_API_BASE_URL`** (or **`NEXT_PUBLIC_WS_BASE_URL`**) on Vercel to your **FastAPI wss://** origin; REST-only **`BACKEND_URL`** proxy does **not** upgrade WebSockets.
+
+### D. Public deploy (optional)
+
+1. Run API container with **`DATABASE_URL`**; note **`https://…`** API origin.
+2. Vercel: **`BACKEND_URL`**, **`NEXT_PUBLIC_API_BASE_URL`** (same origin as API for WS), redeploy.
+
+### E. Viva limits (honest)
+
+- Backtest run is **synchronous HTTP** (no WS progress on `/strategy` yet).
+- Live WS streams **precomputed subsampled equity** after one naive SMA run (MVP).
+- Sessions are **in-memory** on one API worker.
+

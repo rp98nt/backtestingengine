@@ -31,6 +31,7 @@ export default function DataManagerPage() {
   const [importing, setImporting] = useState(false);
   const [symbolKey, setSymbolKey] = useState("HDFC");
   const [file, setFile] = useState<File | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,12 +57,16 @@ export default function DataManagerPage() {
     }
     setImporting(true);
     setError(null);
+    setImportSuccess(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("symbol_key", symbolKey);
-      await importInstrumentCsv(fd);
+      const res = await importInstrumentCsv(fd);
       setFile(null);
+      setImportSuccess(
+        `Imported ${res.bars_imported.toLocaleString()} bars for ${res.symbol}. Re-importing the same symbol replaces prior OHLCV in Neon.`,
+      );
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -84,6 +89,18 @@ export default function DataManagerPage() {
           Postgres (Neon-compatible) per project spec.
         </p>
       </header>
+
+      {error && (
+        <div className="rounded border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {importSuccess && (
+        <div className="rounded border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-100">
+          {importSuccess}
+        </div>
+      )}
 
       <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6 shadow">
         <h2 className="mb-4 text-lg font-medium">Import CSV</h2>
@@ -125,12 +142,6 @@ export default function DataManagerPage() {
           High, Low, Close, Shares Traded.
         </p>
       </section>
-
-      {error && (
-        <div className="rounded border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
 
       <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6 shadow">
         <h2 className="mb-4 text-lg font-medium">Loaded instruments</h2>

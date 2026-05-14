@@ -35,8 +35,9 @@ function ArchitectureStrip() {
         </span>
       </div>
       <p className="mt-4 text-xs text-slate-500">
-        WebSocket path reserved for live replay (SECTION 4). REST used for CSV import,
-        backtests, benchmark, and run listing.
+        REST for CSV, backtests, benchmark; <strong className="text-slate-400">WebSocket</strong>{" "}
+        <code className="text-slate-500">/api/live/ws/{"{session}"}</code> for live equity replay after
+        <code className="text-slate-500"> POST /api/live/start</code>.
       </p>
     </div>
   );

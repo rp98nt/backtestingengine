@@ -11,9 +11,10 @@ export default function BacktestHubPage() {
         </p>
         <h1 className="text-2xl font-semibold">Run backtest</h1>
         <p className="text-sm text-slate-400">
-          Configure and execute on the Strategy page (sync run → Neon). Compare fills
-          and past runs are linked below. WebSocket progress is not wired yet (see spec
-          SECTION 0.A).
+          Configure and run on the Strategy page (sync HTTP run → Neon). Compare fills
+          and past runs are linked below. <strong className="text-slate-300">Live equity</strong>{" "}
+          streams over WebSocket on <Link href="/live" className="text-blue-400 hover:underline">/live</Link> after
+          preparing a session; backtest completion itself remains synchronous HTTP.
         </p>
       </header>
 

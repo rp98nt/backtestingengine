@@ -56,34 +56,36 @@ export const contributionsMatrix = [
   {
     id: "C3",
     problem: "Unified architecture (historical vs live)",
-    mechanism: "Same strategy + portfolio; swap data handler (live replay deferred in MVP UI)",
+    mechanism:
+      "Same SMA path; historical loads Neon in-engine — live replays equity ticks over WebSocket",
     href: "/live",
     linkLabel: "/live",
-    metric: "Identical signal path; WS session when live ships",
+    metric: "Architecture toggle + `/api/live/ws/{session}` stream after POST /api/live/start",
   },
 ];
 
 export const systemBullets = [
-  "Browser → Next.js (Vercel) → `fetch` / WebSocket to FastAPI host.",
+  "Browser → Next.js → `fetch` to FastAPI; **WebSocket** to same API host for live replay (`apiWsUrl` / `NEXT_PUBLIC_API_BASE_URL`).",
   "FastAPI → SQLAlchemy/asyncpg → Neon (`instruments`, `ohlcv_bars`, `backtest_runs`).",
   "Engine: synchronous event loop (market → signal → order → fill) with pluggable queue.",
 ];
 
 export const speakerBullets = {
   "5min": [
-    "Import one CSV on /data, confirm /data/[symbol]/table pagination.",
-    "Run /benchmark once; quote speedup vs queue on this machine.",
-    "Run /strategy/compare; quote return_difference line from API.",
+    "Import one CSV on /data; confirm green confirmation and /data/[symbol]/table pagination.",
+    "Run /benchmark once; quote Python ring vs queue speedup; optional C++ microbench panel if enabled.",
+    "Run /strategy/compare; quote return_difference from the comparison strip.",
+    "Open /live: POST start, then Open WebSocket stream (set NEXT_PUBLIC_API_BASE_URL on hosted UI).",
   ],
   "15min": [
     "Walk Neon persistence: re-open /results after refresh.",
-    "Open /results/[id] equity tail and fill list for committee questions.",
-    "State limitations: single-threaded engine, no L2 book, WS live deferred.",
+    "Open /results/[id] equity tail and trade list for committee questions.",
+    "State limitations: single-threaded HTTP backtest; live stream replays precomputed equity ticks.",
   ],
 };
 
 export const limitations = [
   "Synthetic/sample paths and optional yfinance are out of defence-critical path per SECTION 0.A.",
-  "Live: `POST /api/live/start` exists as an in-memory stub; WebSocket `/ws/live` and bar replay are not implemented yet.",
+  "Live WebSocket requires the browser to reach the FastAPI origin (set NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_WS_BASE_URL); Vercel `/api/backend` REST proxy does not upgrade WebSockets.",
   "Benchmark speedup varies by CPU; apples-to-apples is same process, same bars.",
 ];

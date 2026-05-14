@@ -24,12 +24,14 @@ def _require_database_url() -> str:
 def _connect_args(url: str) -> dict:
     """Neon and most cloud Postgres require TLS; local Docker-less dev often uses Neon only."""
     lower = url.lower()
+    # asyncpg `timeout` = seconds to establish TCP/TLS + auth (avoids hanging forever on bad networks).
+    cloud = {"ssl": True, "timeout": 45}
     if "neon.tech" in lower or "sslmode=require" in lower or "ssl=require" in lower:
-        return {"ssl": True}
+        return cloud
     if "localhost" in lower or "127.0.0.1" in lower:
         return {}
     # Non-local hosts: prefer TLS (e.g. RDS, Supabase)
-    return {"ssl": True}
+    return cloud
 
 
 _url = _require_database_url()

@@ -1,0 +1,14 @@
+# Run FastAPI locally with the same image as production (optional).
+# 1. Create backend/.env with DATABASE_URL=postgresql+asyncpg://...
+# 2. From repo root: docker compose up --build
+# 3. Point .env.local at http://127.0.0.1:8000 (NEXT_PUBLIC_API_BASE_URL)
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env

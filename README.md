@@ -52,6 +52,8 @@ Redeploy after saving. The UI will call `https://<your-vercel-app>/api/backend/a
 
 Alternatively, set **`NEXT_PUBLIC_API_BASE_URL`** to that same API origin and configure **`CORS_ORIGINS`** on FastAPI to include your Vercel URL (browser-direct mode).
 
+Full stack integration (local + Render + Vercel): [`doc/DEPLOY_INTEGRATION.md`](doc/DEPLOY_INTEGRATION.md). Optional **Render Blueprint**: [`render.yaml`](render.yaml) at repo root. Local API with Docker: `docker compose up --build` from repo root (requires `backend/.env`).
+
 ---
 
 ## Run the API (pick one)

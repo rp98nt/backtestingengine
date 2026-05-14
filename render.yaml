@@ -1,0 +1,22 @@
+# Render Blueprint — deploys the FastAPI service only (`backend/`).
+# After deploy: copy the service HTTPS URL → Vercel env BACKEND_URL (origin only, no /api).
+# https://render.com/docs/infrastructure-as-code
+#
+# First deploy: set DATABASE_URL in the Render dashboard (Neon asyncpg URL).
+
+databases: []
+
+services:
+  - type: web
+    name: alphatest-api
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

@@ -1,0 +1,69 @@
+# FastAPI ↔ Next.js integration (this repo)
+
+The **website** (Next.js) and the **API** (FastAPI in `backend/`) are two processes. They integrate **over HTTP**: the UI calls `/api/...` routes that are implemented in Python. There is no “import FastAPI into React”; instead you **run both** and point the UI at the API (see `src/lib/apiBase.ts` and `src/lib/api.ts`).
+
+## Architecture
+
+| Piece | Role |
+|-------|------|
+| **Next.js** (Vercel) | Serves pages; on Vercel, `/api/backend/*` proxies to FastAPI when `BACKEND_URL` is set. |
+| **FastAPI** (`backend/`) | CSV import, OHLCV, backtests, benchmark, live stub — uses Neon via `DATABASE_URL`. |
+| **Neon** | Postgres for instruments, bars, and `backtest_runs`. |
+
+## Local development
+
+1. **Neon** — Create `backend/.env` from `.env.example` and set `DATABASE_URL` (`postgresql+asyncpg://…`).
+2. **API** — From `backend/`: create venv, `pip install -r requirements.txt`, run  
+   `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`  
+   Or from repo root: `docker compose up --build` (requires `backend/.env`).
+3. **Web** — Repo root: copy `.env.example` → `.env.local` with  
+   `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`  
+   Then `npm run dev`.
+4. **Check** — `http://127.0.0.1:8000/api/health` and `http://127.0.0.1:8000/docs` (Swagger).
+
+## Cloud: one public website URL
+
+You need **three** cloud pieces: Vercel (UI) + hosted FastAPI + Neon.
+
+### Step A — Deploy FastAPI (example: Render)
+
+1. Push this repo to GitHub.
+2. In [Render](https://render.com): **New → Blueprint** (or **Web Service**).
+3. If using **Blueprint**, connect the repo; Render reads `render.yaml` at the root.
+4. In the Render service **Environment**, set:
+   - **`DATABASE_URL`** — full Neon URL with `postgresql+asyncpg://…`
+   - Optionally **`CORS_ORIGINS`** — your Vercel site URL (comma-separated if several). Optional when using Vercel’s server-side proxy only.
+5. Deploy. Note the service URL, e.g. `https://alphatest-api.onrender.com`.
+
+**Smoke test:** open `https://<api-host>/api/health` — expect `status` ok and database connected.
+
+### Step B — Point Vercel at the API
+
+1. Vercel project → **Settings → Environment Variables**.
+2. Set **`BACKEND_URL`** = `https://<api-host>` (no trailing slash, no `/api`).
+3. Leave **`NEXT_PUBLIC_API_BASE_URL` unset** on Vercel so the app uses the same-origin proxy (`/api/backend/...`).
+4. **Redeploy** the Next.js project.
+
+### Step C — Verify from the browser (Vercel URL only)
+
+- `/data` — instruments list, CSV import, table, sparklines  
+- `/strategy`, `/results`, `/strategy/compare`, `/benchmark`, `/live`
+
+## Alternative: browser → API directly
+
+Set **`NEXT_PUBLIC_API_BASE_URL`** on Vercel to `https://<api-host>` and set FastAPI **`CORS_ORIGINS`** to include your Vercel origin. You can omit **`BACKEND_URL`** if you use this mode (not recommended unless you prefer explicit CORS over the proxy).
+
+## Timeouts
+
+Heavy routes (`/api/backtest/compare-fills`, `/api/benchmark/run`) can exceed **Vercel** or **free-tier** HTTP limits when proxied. Narrow date ranges or use plans with higher timeouts. See root `README.md`.
+
+## Files reference
+
+| File | Purpose |
+|------|---------|
+| `backend/Dockerfile` | Production-style API image |
+| `render.yaml` | Optional Render Blueprint for the API |
+| `docker-compose.yml` | Optional local API via Docker |
+| `src/app/api/backend/[[...path]]/route.ts` | Vercel → FastAPI proxy |
+| `src/lib/apiBase.ts` | Chooses direct URL vs proxy vs localhost |
+| `src/lib/api.ts` | All UI API calls |

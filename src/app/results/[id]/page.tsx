@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { fetchBacktestResult } from "@/lib/api";
+import { formatInr } from "@/lib/formatInr";
 
 export default function BacktestResultPage({
   params,
@@ -40,7 +42,8 @@ export default function BacktestResultPage({
     void load();
   }, [load]);
 
-  const tailEquity = data?.equity_curve?.slice(-80) ?? [];
+  const curve = data?.equity_curve ?? [];
+  const tailEquity = curve.slice(-80);
   const tailTrades = data?.trade_log?.slice(-40) ?? [];
 
   return (
@@ -111,6 +114,17 @@ export default function BacktestResultPage({
             </pre>
           </section>
 
+          {curve.length >= 2 && (
+            <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6">
+              <h2 className="mb-3 text-lg font-medium">Equity chart</h2>
+              <p className="mb-4 text-xs text-slate-500">
+                Portfolio value over full run (downsampled for plotting). Axis values are
+                raw numbers; table below uses ₹ (en-IN).
+              </p>
+              <EquityCurveChart points={curve} width={640} height={220} maxPoints={600} />
+            </section>
+          )}
+
           <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6">
             <h2 className="mb-3 text-lg font-medium">
               Equity curve <span className="text-xs font-normal text-slate-500">(last 80 points)</span>
@@ -118,8 +132,9 @@ export default function BacktestResultPage({
             <div className="max-h-80 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-xs">
               {tailEquity.map((pt, i) => (
                 <div key={`${pt.timestamp}-${i}`} className="border-b border-slate-900 py-1">
-                  {pt.timestamp} · PV {(pt.portfolio_value as number).toFixed(2)} · cash{" "}
-                  {(pt.cash as number).toFixed(0)}
+                  {String(pt.timestamp)} · PV{" "}
+                  {formatInr(Number(pt.portfolio_value ?? 0), 0)} · cash{" "}
+                  {formatInr(Number(pt.cash ?? 0), 0)}
                 </div>
               ))}
             </div>
@@ -129,10 +144,22 @@ export default function BacktestResultPage({
             <h2 className="mb-3 text-lg font-medium">
               Fills <span className="text-xs font-normal text-slate-500">(last 40)</span>
             </h2>
-            <div className="max-h-72 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-xs">
+            <div className="max-h-72 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 text-xs">
               {tailTrades.map((t, i) => (
-                <div key={i} className="border-b border-slate-900 py-1">
-                  {JSON.stringify(t)}
+                <div key={i} className="border-b border-slate-900 py-2 font-mono text-slate-300">
+                  {typeof t === "object" && t !== null && "price" in t ? (
+                    <span className="flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="text-slate-500">{String((t as Record<string, unknown>).timestamp)}</span>
+                      <span>{String((t as Record<string, unknown>).direction)}</span>
+                      <span>qty {String((t as Record<string, unknown>).quantity)}</span>
+                      <span>{formatInr(Number((t as Record<string, unknown>).price), 2)}</span>
+                      <span className="text-slate-500">
+                        comm {formatInr(Number((t as Record<string, unknown>).commission), 2)}
+                      </span>
+                    </span>
+                  ) : (
+                    JSON.stringify(t)
+                  )}
                 </div>
               ))}
             </div>

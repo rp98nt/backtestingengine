@@ -3,7 +3,9 @@
 Low-latency event-driven backtesting thesis stack: **Next.js** (UI) + **FastAPI** (API) + **Neon PostgreSQL** (data).  
 Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_SPECIFICATION.md).
 
-**Chunk 1 (current):** CSV import → Neon (`instruments`, `ohlcv_bars`) → Data Manager (`/data`) and paginated OHLCV table (`/data/[symbol]/table`).
+**Chunk 1:** CSV import → Neon (`instruments`, `ohlcv_bars`) → Data Manager (`/data`) and paginated OHLCV table (`/data/[symbol]/table`).
+
+**Chunk 2:** Event engine (ring buffer, naive / probabilistic fills, SMA crossover) → `POST /api/backtest/run` persists to Neon (`backtest_runs`) → Strategy runner (`/strategy`) and results (`/results/[id]`). The run endpoint completes the backtest in the same request (no background worker yet); the row is created first with `running`, then updated to `completed` or `failed`.
 
 ---
 
@@ -28,6 +30,8 @@ Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_S
 2. Copy `.env.example` to **`.env.local`** at the repo root (Next.js):
 
    `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
+
+3. Optional — **`CORS_ORIGINS`** on the API (see `.env.example`): when the UI is on Vercel, list that origin so the browser can call your hosted API.
 
 ---
 

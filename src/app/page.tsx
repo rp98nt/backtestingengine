@@ -13,13 +13,19 @@ export default function Home() {
           </h1>
           <p className="mt-3 text-slate-400">
             MTech thesis stack: Next.js UI + FastAPI + Neon PostgreSQL. Chunk 1: CSV
-            import, OHLCV storage, and tables. See{" "}
+            import and tables. Chunk 2: SMA backtest engine and persisted runs. See{" "}
             <code className="rounded bg-slate-900 px-1 text-sm">README.md</code> for
             run options (Docker API vs Python). Full spec:{" "}
             <code className="rounded bg-slate-900 px-1 text-sm">doc/ALPHA_TEST_SPECIFICATION.md</code>.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Link
+            href="/strategy"
+            className="rounded-lg border border-slate-600 px-5 py-2.5 font-medium hover:bg-slate-900"
+          >
+            Run SMA backtest
+          </Link>
           <Link
             href="/data"
             className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-500"

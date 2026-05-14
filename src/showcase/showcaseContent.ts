@@ -84,6 +84,6 @@ export const speakerBullets = {
 
 export const limitations = [
   "Synthetic/sample paths and optional yfinance are out of defence-critical path per SECTION 0.A.",
-  "Live WebSocket session and `/ws/live` are not implemented in the current MVP slice.",
+  "Live: `POST /api/live/start` exists as an in-memory stub; WebSocket `/ws/live` and bar replay are not implemented yet.",
   "Benchmark speedup varies by CPU; apples-to-apples is same process, same bars.",
 ];

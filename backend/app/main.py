@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes.backtest import router as backtest_router
 from app.api.routes.benchmark import router as benchmark_router
 from app.api.routes.data import router as data_router
+from app.api.routes.live import router as live_router
 from app.config import settings
 from app.database import get_session, init_db
 
@@ -32,6 +33,7 @@ app.add_middleware(
 app.include_router(data_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(benchmark_router, prefix="/api")
+app.include_router(live_router, prefix="/api")
 
 
 @app.get("/api/health")

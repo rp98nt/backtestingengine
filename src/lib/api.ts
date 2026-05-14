@@ -161,3 +161,50 @@ export async function fetchBacktestRuns(
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+export type LiveStartBody = {
+  strategy: "sma_crossover";
+  symbols: string[];
+  replay_start_date?: string | null;
+  replay_end_date?: string | null;
+  speed_multiplier?: number;
+  initial_capital: number;
+  strategy_params?: { short_window?: number; long_window?: number };
+};
+
+export async function startLiveSession(
+  body: LiveStartBody,
+): Promise<{ session_id: string; status: string }> {
+  const r = await fetch(`${base}/api/live/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getLiveStatus(sessionId: string): Promise<{
+  session_id: string;
+  status: string;
+  detail: string;
+}> {
+  const r = await fetch(
+    `${base}/api/live/status/${encodeURIComponent(sessionId)}`,
+    { cache: "no-store" },
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function stopLiveSession(sessionId: string): Promise<{
+  session_id: string;
+  status: string;
+  detail: string;
+}> {
+  const r = await fetch(`${base}/api/live/stop/${encodeURIComponent(sessionId)}`, {
+    method: "POST",
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

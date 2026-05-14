@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
 import {
   candidateMeta,
   contributionsMatrix,
@@ -43,6 +44,7 @@ function ArchitectureStrip() {
 
 export default function ShowcasePage() {
   const [path, setPath] = useState<"5min" | "15min">("5min");
+  const [archMode, setArchMode] = useState<"backtest" | "live">("backtest");
 
   return (
     <div className="min-h-full bg-slate-950 text-slate-100">
@@ -167,6 +169,45 @@ export default function ShowcasePage() {
               <li key={b}>{b}</li>
             ))}
           </ul>
+        </section>
+
+        <section className="mt-12" id="architecture">
+          <h2 className="text-xl font-semibold text-white">Contribution 3 — diagram</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Toggle highlights which data and execution periphery is active (same strategy
+            core). Open{" "}
+            <Link href="/live" className="text-blue-400 hover:underline">
+              /live
+            </Link>{" "}
+            for stub API + the same diagram.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setArchMode("backtest")}
+              className={`rounded-lg px-3 py-1.5 text-sm ${
+                archMode === "backtest"
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-600 text-slate-300"
+              }`}
+            >
+              Backtest mode
+            </button>
+            <button
+              type="button"
+              onClick={() => setArchMode("live")}
+              className={`rounded-lg px-3 py-1.5 text-sm ${
+                archMode === "live"
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-600 text-slate-300"
+              }`}
+            >
+              Live mode
+            </button>
+          </div>
+          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+            <ArchitectureDiagram mode={archMode} />
+          </div>
         </section>
 
         <section className="mt-12" id="demos">

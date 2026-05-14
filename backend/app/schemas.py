@@ -93,3 +93,24 @@ class BenchmarkRunResponse(BaseModel):
     standard_queue: dict[str, float]
     speedup_factor: float
     latency_reduction_pct: float
+
+
+class LiveStartRequest(BaseModel):
+    strategy: str = Field(default="sma_crossover")
+    symbols: list[str] = Field(default_factory=list)
+    replay_start_date: str | None = None
+    replay_end_date: str | None = None
+    speed_multiplier: float = Field(default=1.0, gt=0)
+    initial_capital: float = Field(default=1_000_000.0, gt=0)
+    strategy_params: dict = Field(default_factory=dict)
+
+
+class LiveStartResponse(BaseModel):
+    session_id: str
+    status: str
+
+
+class LiveStatusResponse(BaseModel):
+    session_id: str
+    status: str
+    detail: str

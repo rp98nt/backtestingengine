@@ -10,44 +10,34 @@ The **website** (Next.js) and the **API** (FastAPI in `backend/`) are two proces
 | **FastAPI** (`backend/`) | CSV import, OHLCV, backtests, benchmark, live stub — uses Neon via `DATABASE_URL`. |
 | **Neon** | Postgres for instruments, bars, and `backtest_runs`. |
 
-## Local development
+## Cloud-first workflow (no local FastAPI required)
 
-1. **Neon** — Create `backend/.env` from `.env.example` and set `DATABASE_URL` (`postgresql+asyncpg://…`).
-2. **API** — From `backend/`: create venv, `pip install -r requirements.txt`, run  
+You need **three** hosted pieces: **Neon** + **FastAPI** (container host) + **Vercel** (Next.js). You do **not** need Python or Uvicorn on your laptop for this path.
+
+1. **Neon** — Create a project and a `DATABASE_URL` using scheme **`postgresql+asyncpg://`** (replace Neon’s `postgresql://`). **Strip** `?sslmode=…`, `channel_binding=…`, and other query params from the URI (`asyncpg` rejects them; TLS for `*.neon.tech` is set in `backend/app/database.py`).
+2. **Deploy FastAPI** — Recommended: [Render](https://render.com) **New → Blueprint**, connect this GitHub repo; Render reads **`render.yaml`**. In the service **Environment**, set **`DATABASE_URL`** to the value from step 1 (Render marks it secret when `sync: false` — paste in the dashboard after first deploy if prompted). Optionally set **`CORS_ORIGINS`** to your Vercel site URL if you will call the API **directly** from the browser; omit if you use **`BACKEND_URL`** proxy only.
+3. **Smoke test the API** — Open `https://<your-render-service>/api/health` in a browser. Expect `"status":"ok"` and `"database":"connected"`.
+4. **Vercel** — Import the same repo (root = Next.js app per your Vercel settings). Under **Environment Variables** (Production): set **`BACKEND_URL`** = `https://<your-render-service>` (HTTPS origin only, no `/api` suffix). Leave **`NEXT_PUBLIC_API_BASE_URL` unset** if you want REST via the same-origin **`/api/backend/...`** proxy.
+5. **WebSockets (`/live`)** — The Vercel proxy does **not** upgrade WebSockets. For hosted **`/live`**, set **`NEXT_PUBLIC_API_BASE_URL`** (or **`NEXT_PUBLIC_WS_BASE_URL`**) on Vercel to your **FastAPI HTTPS** origin so the browser opens **`wss://`** to the API. Set **`CORS_ORIGINS`** on FastAPI to include your Vercel origin when using browser-direct mode.
+6. **Redeploy** the Vercel project after saving env vars.
+7. **Verify** — Open your production site: `/data`, `/strategy`, `/results`, `/strategy/compare`, `/benchmark`, `/live` (WS needs `NEXT_PUBLIC_*` as in step 5).
+
+**Alternative API hosts:** any platform that can run the **`backend/Dockerfile`** (Fly.io, Railway, Google Cloud Run, etc.) with **`DATABASE_URL`** and a public HTTPS URL — same Vercel wiring as above.
+
+## Local development (optional)
+
+Use this only when you want faster iteration on your machine.
+
+1. **Neon** — Same as cloud-first step 1. Store the URL in **`backend/.env`** (gitignored) as **`DATABASE_URL`**.
+2. **API** — From `backend/`: Python 3.12 venv, `pip install -r requirements.txt`, run  
    `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`  
    Or from repo root: `docker compose up --build` (requires `backend/.env`).
-3. **Web** — Repo root: copy `.env.example` → `.env.local` with  
+3. **Web** — Repo root: copy `.env.example` → **`.env.local`** with  
    `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`  
    Then `npm run dev`.
 4. **Check** — `http://127.0.0.1:8000/api/health` and `http://127.0.0.1:8000/docs` (Swagger).
 
-## Cloud: one public website URL
-
-You need **three** cloud pieces: Vercel (UI) + hosted FastAPI + Neon.
-
-### Step A — Deploy FastAPI (example: Render)
-
-1. Push this repo to GitHub.
-2. In [Render](https://render.com): **New → Blueprint** (or **Web Service**).
-3. If using **Blueprint**, connect the repo; Render reads `render.yaml` at the root.
-4. In the Render service **Environment**, set:
-   - **`DATABASE_URL`** — full Neon URL with `postgresql+asyncpg://…` (no `?sslmode=…` or `channel_binding` query params — `asyncpg` rejects them; TLS for `*.neon.tech` is enabled in `backend/app/database.py`.)
-   - Optionally **`CORS_ORIGINS`** — your Vercel site URL (comma-separated if several). Optional when using Vercel’s server-side proxy only.
-5. Deploy. Note the service URL, e.g. `https://alphatest-api.onrender.com`.
-
-**Smoke test:** open `https://<api-host>/api/health` — expect `status` ok and database connected.
-
-### Step B — Point Vercel at the API
-
-1. Vercel project → **Settings → Environment Variables**.
-2. Set **`BACKEND_URL`** = `https://<api-host>` (no trailing slash, no `/api`).
-3. Leave **`NEXT_PUBLIC_API_BASE_URL` unset** on Vercel so the app uses the same-origin proxy (`/api/backend/...`).
-4. **Redeploy** the Next.js project.
-
-### Step C — Verify from the browser (Vercel URL only)
-
-- `/data` — instruments list, CSV import, table, sparklines  
-- `/strategy`, `/results`, `/strategy/compare`, `/benchmark`, `/live`
+Render/Vercel env details are summarized in **Cloud-first workflow** above (steps 2–6 and **Alternative API hosts**).
 
 ## Alternative: browser → API directly
 
@@ -83,7 +73,16 @@ Use remaining `- [ ]` items in SECTION 0.B as GitHub Issues (label e.g. `native-
 
 Follow in order. You supply Neon, CSVs, and (for public demo) cloud env vars.
 
-### A. One-time setup
+### A. One-time setup (pick one path)
+
+**Path 1 — Cloud-first (no local FastAPI)** — matches SECTION 0 **CLOUD-FIRST** clause:
+
+1. **Neon** — Same as `doc/DEPLOY_INTEGRATION.md` § **Cloud-first workflow** step 1.
+2. **Render (or other host)** — Deploy **`backend/Dockerfile`**; set **`DATABASE_URL`** on the host (not in `backend/.env` on your laptop unless you also use Docker locally). Confirm `https://<api>/api/health`.
+3. **Vercel** — Set **`BACKEND_URL`**, **`NEXT_PUBLIC_API_BASE_URL`** / **`NEXT_PUBLIC_WS_BASE_URL`** for `/live` as in `doc/DEPLOY_INTEGRATION.md`. Redeploy.
+4. **CSV imports** — Use the **hosted** site `/data` (no local `npm run dev` required if you edit only via Git push to Vercel).
+
+**Path 2 — Local dev (optional)**
 
 1. **Neon** — Create project; copy URI; use `postgresql+asyncpg://…` in **`backend/.env`** as **`DATABASE_URL`**.
 2. **Local** — Copy `.env.example` → **`backend/.env`** (with `DATABASE_URL`). Copy → **`.env.local`** at repo root: **`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`** (or your public API URL for hosted UI + WebSocket).
@@ -103,9 +102,9 @@ Follow in order. You supply Neon, CSVs, and (for public demo) cloud env vars.
 4. **`/live`** — **Prepare replay session**, then **Open WebSocket stream**.  
    **Hosted UI:** set **`NEXT_PUBLIC_API_BASE_URL`** (or **`NEXT_PUBLIC_WS_BASE_URL`**) on Vercel to your **FastAPI wss://** origin; REST-only **`BACKEND_URL`** proxy does **not** upgrade WebSockets.
 
-### D. Public deploy (optional)
+### D. Public deploy (when Path 2 was used locally first)
 
-1. Run API container with **`DATABASE_URL`**; note **`https://…`** API origin.
+1. Run API container with **`DATABASE_URL`** on the host; note **`https://…`** API origin.
 2. Vercel: **`BACKEND_URL`**, **`NEXT_PUBLIC_API_BASE_URL`** (same origin as API for WS), redeploy.
 
 ### E. Viva limits (honest)

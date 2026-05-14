@@ -12,55 +12,69 @@ Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_S
 ### Hosted API timeouts (configure on your host)
 
 If you deploy the API behind **strict request time limits** (e.g. some serverless tiers), **`/api/backtest/compare-fills`** and **`/api/benchmark/run`** can exceed the limit because they run **two** full passes over the data. Prefer a container/VM-style host with a generous timeout, **or** narrow `start_date` / `end_date` in the request body. The **single** `POST /api/backtest/run` is lighter.
+
+---
+
+## Hosted stack (recommended — no local FastAPI)
+
+Normative wording: **`doc/ALPHA_TEST_SPECIFICATION.md`** SECTION 0 **CLOUD-FIRST / HOSTED-ONLY**. Full steps: **[`doc/DEPLOY_INTEGRATION.md`](doc/DEPLOY_INTEGRATION.md)** § **Cloud-first workflow**.
+
+1. **Neon** — `DATABASE_URL` with scheme **`postgresql+asyncpg://`**. Strip `?sslmode=…` / `channel_binding=…` from the URI ([`.env.example`](.env.example)); TLS for Neon is applied in `backend/app/database.py`.
+2. **FastAPI** — Deploy **`backend/Dockerfile`** on [Render](https://render.com) (Blueprint: [`render.yaml`](render.yaml)), Railway, Fly.io, etc. Set **`DATABASE_URL`** in the host environment (Render dashboard when the blueprint marks the var `sync: false`).
+3. **Smoke test** — `https://<your-api>/api/health` → `"database":"connected"`.
+4. **Vercel** — Connect this repo; set **`BACKEND_URL`** = `https://<your-api>` (HTTPS origin only, no `/api`). For **`/live`** WebSockets, set **`NEXT_PUBLIC_API_BASE_URL`** or **`NEXT_PUBLIC_WS_BASE_URL`** (the server proxy does not upgrade WS). Redeploy.
+
+**Defence MVP runbook** (imports, demo path): [`doc/DEPLOY_INTEGRATION.md`](doc/DEPLOY_INTEGRATION.md) → **Defence MVP — operator runbook** (Path 1 = cloud-first).
+
+Optional **native (C++) engine** roadmap: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_SPECIFICATION.md) → **SECTION 0.B**.
+
 ---
 
 ## Prerequisites
 
 | Tool | Purpose |
 |------|---------|
-| **Node.js 18+** | Next.js (`npm run dev`, `npm run build`) |
-| **Neon** | Postgres `DATABASE_URL` (no local Postgres in this repo) |
-| **Python 3.12+** *or* **Docker Desktop** | Run the FastAPI backend |
+| **Neon** | Postgres `DATABASE_URL` on the API host (no local Postgres in this repo) |
+| **Container host + Vercel** | **Default path:** hosted FastAPI + hosted Next.js (no Python on your PC) |
+| **Node.js 18+** | Optional: local `npm run dev` / `npm run build`; Vercel builds from Git without a local install |
+| **Python 3.12+** *or* **Docker Desktop** | **Optional:** local Uvicorn or local Docker for the API |
 
 ---
 
 ## Environment variables
 
-1. Copy [`.env.example`](.env.example) to **`backend/.env`** and set **`DATABASE_URL`** to your Neon URL using the **asyncpg** scheme:
+### Hosted API (Render, etc.)
 
-   `postgresql+asyncpg://USER:PASSWORD@ep-....neon.tech/neondb`
+Set on the **API host** (never commit secrets):
 
-   (In the Neon console, copy the connection string and replace `postgresql://` with `postgresql+asyncpg://`. Remove `?sslmode=...` and other query parameters if Neon added them — `asyncpg` does not accept `sslmode`; this repo enables TLS for Neon hosts in `backend/app/database.py`.)
+- **`DATABASE_URL`** — `postgresql+asyncpg://USER:PASSWORD@ep-....neon.tech/neondb` (no `sslmode` query params).
+- **`CORS_ORIGINS`** — Your Vercel origin(s), comma-separated, **if** the browser calls the API directly. Omit if you only use the Vercel **`BACKEND_URL`** server-side proxy for REST.
 
-2. Copy `.env.example` to **`.env.local`** at the repo root (Next.js):
+### Vercel (Next.js)
 
-   `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
+| Variable | Purpose |
+|----------|---------|
+| **`BACKEND_URL`** | `https://<api-origin>` — REST via `/api/backend/...` proxy |
+| **`NEXT_PUBLIC_API_BASE_URL`** | Optional; same API origin for browser-direct REST **and** `wss://` for **`/live`** |
+| **`NEXT_PUBLIC_WS_BASE_URL`** | Optional; only if the WebSocket origin differs |
 
-3. Optional — **`CORS_ORIGINS`** on the API (see `.env.example`): required only if the browser calls your API **directly** via `NEXT_PUBLIC_API_BASE_URL` from a different origin.
+Visitors must never load `http://127.0.0.1:8000`. On Vercel, **`VERCEL=1`** + **`BACKEND_URL`** enables the same-origin proxy when **`NEXT_PUBLIC_API_BASE_URL`** is unset.
 
-### Deploy UI on Vercel (fixes “Failed to fetch” on `/data`)
+### Optional: local API + local Next
 
-The production build must **not** call `http://127.0.0.1:8000` from visitors’ browsers. If **`NEXT_PUBLIC_API_BASE_URL` is unset**, Vercel sets `VERCEL=1` and the app uses a **same-origin proxy** at **`/api/backend/...`**.
+1. [`.env.example`](.env.example) → **`backend/.env`** with **`DATABASE_URL`** (same Neon rules).
+2. `.env.example` → **`.env.local`**: **`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`**
+3. **`CORS_ORIGINS`** on the API if the browser uses a different origin than the API.
 
-In **Vercel → Project → Settings → Environment Variables** (Production):
-
-| Variable | Where | Value |
-|----------|--------|--------|
-| **`BACKEND_URL`** | Next.js (server) | Public **HTTPS** origin of your FastAPI app only, e.g. `https://your-api.example.com` (no `/api` suffix) |
-
-Redeploy after saving. The UI will call `https://<your-vercel-app>/api/backend/api/...` and Next forwards to `BACKEND_URL`.
-
-Alternatively, set **`NEXT_PUBLIC_API_BASE_URL`** to that same API origin and configure **`CORS_ORIGINS`** on FastAPI to include your Vercel URL (browser-direct mode).
-
-Full stack integration (local + Render + Vercel): [`doc/DEPLOY_INTEGRATION.md`](doc/DEPLOY_INTEGRATION.md) (includes **Defence MVP operator runbook**). Optional **Render Blueprint**: [`render.yaml`](render.yaml) at repo root. Local API with Docker: `docker compose up --build` from repo root (requires `backend/.env`). Optional **native (C++) engine** roadmap (GitHub-issue checklists): [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_SPECIFICATION.md) → **SECTION 0.B**.
+Local API via Docker: `docker compose up --build` from repo root (requires `backend/.env`).
 
 ---
 
-## Run the API (pick one)
+## Run the API locally (optional)
 
-### Option A — No Python on your PC (Docker only for the API)
+### Option A — Docker on your PC (no Python venv)
 
-Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another Docker engine). This image **does not** run a database; it connects to **Neon** using `DATABASE_URL`.
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another Docker engine). Uses **`DATABASE_URL`** in `backend/.env`.
 
 From the **repository root**:
 
@@ -69,26 +83,15 @@ docker build -f backend/Dockerfile -t alphatest-api backend
 docker run --rm -p 8000:8000 --env-file backend/.env alphatest-api
 ```
 
-Then open `http://127.0.0.1:8000/docs` to confirm the API.
+Then open `http://127.0.0.1:8000/docs`.
 
-### Option B — Python on Windows (recommended for daily dev)
+### Option B — Python venv on Windows
 
-1. Install **Python 3.12** (64-bit) from [python.org](https://www.python.org/downloads/windows/) and tick **“Add python.exe to PATH”**, **or**:
-
-   ```powershell
-   winget install Python.Python.3.12
-   ```
-
-2. Open a **new** terminal and verify:
+1. Install **Python 3.12** from [python.org](https://www.python.org/downloads/windows/) (tick **Add python.exe to PATH**) or `winget install Python.Python.3.12`.
+2. `py -3.12 --version`
+3. From **`backend/`**:
 
    ```powershell
-   py -3.12 --version
-   ```
-
-3. Create a venv and install the backend:
-
-   ```powershell
-   cd backend
    py -3.12 -m venv .venv
    .\.venv\Scripts\Activate.ps1
    pip install -r requirements.txt
@@ -96,13 +99,13 @@ Then open `http://127.0.0.1:8000/docs` to confirm the API.
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-   `pip install ./native_ext` builds the optional **C++ `engine_native`** module (skip if no C++ toolchain; set `USE_NATIVE_ENGINE=false` in `backend/.env`).
+   Skip `pip install ./native_ext` without a C++ toolchain; set `USE_NATIVE_ENGINE=false` in `backend/.env`.
 
-Health check (includes DB round-trip): `GET http://127.0.0.1:8000/api/health`
+Health check: `GET http://127.0.0.1:8000/api/health`
 
 ---
 
-## Run the web app
+## Run the web app locally (optional)
 
 From the **repository root**:
 
@@ -111,7 +114,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → **Data Manager** → import each file from `marketdata/` with the matching symbol key (HDFC, ICICI, …).
+Open [http://localhost:3000](http://localhost:3000) → **Data Manager** → import from `marketdata/`. For a **fully hosted** demo, use your **Vercel URL** after deploy.
 
 ---
 

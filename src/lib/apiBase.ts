@@ -1,10 +1,13 @@
 /**
  * Resolves the base URL for FastAPI calls from the browser.
  *
+ * **Hosted (Vercel):** set `BACKEND_URL` (server proxy) and/or `NEXT_PUBLIC_API_BASE_URL`
+ * (browser-direct + WebSocket). Do not rely on the localhost fallback in production.
+ *
  * - If `NEXT_PUBLIC_API_BASE_URL` is set → call the API directly (local dev or explicit prod).
  * - Else on Vercel (`VERCEL=1`) or when `NEXT_PUBLIC_USE_API_PROXY=1` → same-origin
  *   `/api/backend/...` proxy (avoids browser calls to 127.0.0.1 and sidesteps CORS).
- * - Else → `http://127.0.0.1:8000` for local `next dev`.
+ * - Else → `http://127.0.0.1:8000` for local `next dev` only.
  *
  * @param path must start with `/api/` (e.g. `/api/data/instruments`)
  */

@@ -1,8 +1,10 @@
 # Render Blueprint — deploys the FastAPI service only (`backend/`).
-# After deploy: copy the service HTTPS URL → Vercel env BACKEND_URL (origin only, no /api).
+# Cloud-first: no Python on your laptop required. After deploy, copy the service
+# HTTPS URL → Vercel env BACKEND_URL (origin only, no /api). Set DATABASE_URL in
+# Render Dashboard (Neon asyncpg URL, no ?sslmode= in URI).
 # https://render.com/docs/infrastructure-as-code
 #
-# First deploy: set DATABASE_URL in the Render dashboard (Neon asyncpg URL).
+# First deploy: Render prompts for DATABASE_URL when sync: false (secret).
 
 services:
   - type: web

@@ -40,6 +40,20 @@ AMENDED TECHNOLOGY & PLATFORM (SUPERSEDES INLINE STALE REFERENCES ELSEWHERE)
     env vars (DB URL, CORS, WS origins) only inside this specification when
     planning is finalized; **operational env summaries** MAY duplicate short tables
     in `README.md` / `doc/DEPLOY_INTEGRATION.md` per SECTION 0 SSOT.
+  - **CLOUD-FIRST / HOSTED-ONLY (NO LOCAL FASTAPI REQUIRED):** A defence or
+    production demo **MAY** omit a Python virtual environment, local Uvicorn, and
+    local Docker for the API on the operator workstation. **Normative:** deploy
+    FastAPI to a separate host using the repo’s **`backend/Dockerfile`** (or
+    equivalent) with **`DATABASE_URL`** (Neon, `postgresql+asyncpg://…` per driver
+    rules in `README.md` / `doc/DEPLOY_INTEGRATION.md` — no libpq-only query params
+    such as `sslmode` in the URI). **Normative:** host the Next.js UI on **Vercel**
+    and set **`BACKEND_URL`** and/or **`NEXT_PUBLIC_API_BASE_URL`** (and
+    **`NEXT_PUBLIC_WS_BASE_URL`** or the same API origin for **`NEXT_PUBLIC_API_BASE_URL`**
+    when WebSockets must reach FastAPI directly) per **`doc/DEPLOY_INTEGRATION.md`**.
+    Example IaC: root **`render.yaml`** (Render Blueprint). **Non-normative only:**
+    local `uvicorn`, `docker compose` on `localhost`, and `npm run dev` are
+    developer conveniences for iteration; they are **not** required for a fully
+    hosted thesis delivery.
   - METADATA DATABASE: **Neon PostgreSQL** accessed via SQLAlchemy (and an
     asynchronous driver suited to FastAPI workloads, e.g. `asyncpg` + Neon’s
     connection string). Persist metadata, instruments registry, optional job/run
@@ -114,7 +128,9 @@ NON-GOALS (DEFENCE MILESTONE)
     in SECTION 4–5 literally.
   - Full strategy suite parity (pairs trading + mean reversion tabs) unless time
     remains after REQUIRED items pass the acceptance checklist.
-  - Production hardening beyond what is needed for a stable local/preview demo.
+  - Production hardening beyond what is needed for a stable **hosted** or
+    Vercel-preview demo (local-only convenience is optional; see **CLOUD-FIRST**
+    clause in SECTION 0).
 
 ───────────────────────────────────────────────────────────────────
 CSV IMPORT — “SIMPLE CLICK AND USE” (UI + BEHAVIOUR)  [REQUIRED]

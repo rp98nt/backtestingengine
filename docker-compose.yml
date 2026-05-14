@@ -1,0 +1,15 @@
+# Local Postgres for AlphaTest (Neon-compatible). Start: docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: alphatest
+    ports:
+      - "5432:5432"
+    volumes:
+      - alphatest_pgdata:/var/lib/postgresql/data
+
+volumes:
+  alphatest_pgdata:

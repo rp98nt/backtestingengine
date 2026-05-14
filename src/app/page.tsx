@@ -1,64 +1,45 @@
-import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="flex min-h-full flex-col bg-slate-950 text-slate-100">
+      <main className="mx-auto flex max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-20">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-wide text-blue-400">
+            AlphaTest
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+            Low-latency event-driven backtesting
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-3 text-slate-400">
+            MTech thesis stack: Next.js UI + FastAPI + Postgres (Neon-compatible).
+            Chunk 1 ships data import and OHLCV tables; engine and full dashboards
+            follow the spec in <code className="rounded bg-slate-900 px-1 text-sm">doc/ALPHA_TEST_SPECIFICATION.md</code>.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/data"
+            className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-500"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
+            Open Data Manager
+          </Link>
           <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://github.com/rp98nt/backtestingengine"
+            className="rounded-lg border border-slate-600 px-5 py-2.5 font-medium hover:bg-slate-900"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noreferrer"
           >
-            Documentation
+            Repository
           </a>
         </div>
+        <p className="text-xs text-slate-500">
+          Run Postgres: <code className="text-slate-400">docker compose up -d</code> ·
+          API: <code className="text-slate-400">cd backend && uvicorn app.main:app --reload</code> ·
+          Copy <code className="text-slate-400">.env.example</code> to{" "}
+          <code className="text-slate-400">backend/.env</code> and{" "}
+          <code className="text-slate-400">.env.local</code> for the web app.
+        </p>
       </main>
     </div>
   );

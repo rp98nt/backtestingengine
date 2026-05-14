@@ -9,6 +9,7 @@ import {
   startLiveSession,
   stopLiveSession,
 } from "@/lib/api";
+import { formatInr } from "@/lib/formatInr";
 
 export default function LivePage() {
   const [mode, setMode] = useState<"backtest" | "live">("live");
@@ -183,6 +184,7 @@ export default function LivePage() {
             onChange={(e) => setCapital(Number(e.target.value))}
             className="rounded border border-slate-600 bg-slate-950 px-3 py-2"
           />
+          <span className="text-xs text-slate-500">{formatInr(capital, 0)}</span>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Speed multiplier

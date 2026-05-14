@@ -118,8 +118,8 @@ export default function BacktestResultPage({
             <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-6">
               <h2 className="mb-3 text-lg font-medium">Equity chart</h2>
               <p className="mb-4 text-xs text-slate-500">
-                Portfolio value over full run (downsampled for plotting). Axis values are
-                raw numbers; table below uses ₹ (en-IN).
+                Portfolio value over full run (downsampled for plotting). Min/max summary
+                uses ₹ (<code className="text-slate-600">en-IN</code>).
               </p>
               <EquityCurveChart points={curve} width={640} height={220} maxPoints={600} />
             </section>

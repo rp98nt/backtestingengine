@@ -1,5 +1,7 @@
 /** SVG line chart of portfolio value over time (downsampled for large runs). */
 
+import { formatInr } from "@/lib/formatInr";
+
 type Pt = { portfolio_value: number };
 
 function sampleValues(points: Pt[], maxPoints: number): number[] {
@@ -79,10 +81,12 @@ export function EquityCurveChart({
       </svg>
       <p className="mt-2 flex flex-wrap gap-x-4 text-xs text-slate-500">
         <span>
-          Min: <span className="font-mono text-slate-400">{min.toFixed(0)}</span>
+          Min:{" "}
+          <span className="font-mono text-slate-300">{formatInr(min, 0)}</span>
         </span>
         <span>
-          Max: <span className="font-mono text-slate-400">{max.toFixed(0)}</span>
+          Max:{" "}
+          <span className="font-mono text-slate-300">{formatInr(max, 0)}</span>
         </span>
         <span>({points.length} bars in series)</span>
       </p>

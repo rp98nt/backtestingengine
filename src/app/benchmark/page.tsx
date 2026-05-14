@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { fetchInstruments, runBenchmark } from "@/lib/api";
+import { formatInr } from "@/lib/formatInr";
 
 function formatNs(ns: number): string {
   if (!Number.isFinite(ns) || ns <= 0) return "0 ns";
@@ -171,6 +172,7 @@ export default function BenchmarkPage() {
             onChange={(e) => setCapital(Number(e.target.value))}
             className="rounded border border-slate-600 bg-slate-950 px-3 py-2"
           />
+          <span className="text-xs text-slate-500">{formatInr(capital, 0)}</span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">

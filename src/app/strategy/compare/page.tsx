@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { compareBacktestFills, fetchInstruments } from "@/lib/api";
+import { formatComparisonMetric, formatInr } from "@/lib/formatInr";
 
 export default function CompareFillsPage() {
   const [instruments, setInstruments] = useState<{ symbol: string; name: string }[]>(
@@ -134,6 +135,7 @@ export default function CompareFillsPage() {
             onChange={(e) => setCapital(Number(e.target.value))}
             className="rounded border border-slate-600 bg-slate-950 px-3 py-2"
           />
+          <span className="text-xs text-slate-500">{formatInr(capital, 0)}</span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">
@@ -200,7 +202,9 @@ export default function CompareFillsPage() {
               {Object.entries(out.comparison).map(([k, v]) => (
                 <div key={k} className="rounded bg-slate-950/80 px-3 py-2">
                   <dt className="text-xs uppercase text-slate-500">{k}</dt>
-                  <dd className="font-mono text-slate-200">{v.toFixed(6)}</dd>
+                  <dd className="font-mono text-slate-200">
+                    {formatComparisonMetric(k, v)}
+                  </dd>
                 </div>
               ))}
             </dl>

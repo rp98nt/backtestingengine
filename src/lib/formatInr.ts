@@ -13,3 +13,14 @@ export function formatInr(amount: number, fractionDigits = 0): string {
     return `₹${amount.toFixed(fractionDigits)}`;
   }
 }
+
+/** Compare-fills API: some fields are currency, others are ratios. */
+export function formatComparisonMetric(key: string, value: number): string {
+  if (
+    key === "avg_slippage_per_trade" ||
+    key === "total_extra_cost_probabilistic"
+  ) {
+    return formatInr(value, 2);
+  }
+  return value.toFixed(6);
+}

@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.data import router as data_router
 from app.config import settings
-from app.database import init_db
+from app.database import get_session, init_db
 
 
 @asynccontextmanager
@@ -29,5 +31,6 @@ app.include_router(data_router, prefix="/api")
 
 
 @app.get("/api/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health(session: AsyncSession = Depends(get_session)) -> dict[str, str]:
+    await session.execute(text("SELECT 1"))
+    return {"status": "ok", "database": "connected"}

@@ -12,9 +12,11 @@ export default function Home() {
             Low-latency event-driven backtesting
           </h1>
           <p className="mt-3 text-slate-400">
-            MTech thesis stack: Next.js UI + FastAPI + Postgres (Neon-compatible).
-            Chunk 1 ships data import and OHLCV tables; engine and full dashboards
-            follow the spec in <code className="rounded bg-slate-900 px-1 text-sm">doc/ALPHA_TEST_SPECIFICATION.md</code>.
+            MTech thesis stack: Next.js UI + FastAPI + Neon PostgreSQL. Chunk 1: CSV
+            import, OHLCV storage, and tables. See{" "}
+            <code className="rounded bg-slate-900 px-1 text-sm">README.md</code> for
+            run options (Docker API vs Python). Full spec:{" "}
+            <code className="rounded bg-slate-900 px-1 text-sm">doc/ALPHA_TEST_SPECIFICATION.md</code>.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">

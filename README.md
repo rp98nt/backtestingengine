@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlphaTest (backtestingengine)
 
-## Getting Started
+Low-latency event-driven backtesting thesis stack: **Next.js** (UI) + **FastAPI** (API) + **Neon PostgreSQL** (data).  
+Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_SPECIFICATION.md).
 
-First, run the development server:
+**Chunk 1 (current):** CSV import → Neon (`instruments`, `ohlcv_bars`) → Data Manager (`/data`) and paginated OHLCV table (`/data/[symbol]/table`).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Prerequisites
+
+| Tool | Purpose |
+|------|---------|
+| **Node.js 18+** | Next.js (`npm run dev`, `npm run build`) |
+| **Neon** | Postgres `DATABASE_URL` (no local Postgres in this repo) |
+| **Python 3.12+** *or* **Docker Desktop** | Run the FastAPI backend |
+
+---
+
+## Environment variables
+
+1. Copy [`.env.example`](.env.example) to **`backend/.env`** and set **`DATABASE_URL`** to your Neon URL using the **asyncpg** scheme:
+
+   `postgresql+asyncpg://USER:PASSWORD@ep-....neon.tech/neondb?sslmode=require`
+
+   (In the Neon console, copy the connection string and replace `postgresql://` with `postgresql+asyncpg://`.)
+
+2. Copy `.env.example` to **`.env.local`** at the repo root (Next.js):
+
+   `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
+
+---
+
+## Run the API (pick one)
+
+### Option A — No Python on your PC (Docker only for the API)
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another Docker engine). This image **does not** run a database; it connects to **Neon** using `DATABASE_URL`.
+
+From the **repository root**:
+
+```powershell
+docker build -f backend/Dockerfile -t alphatest-api backend
+docker run --rm -p 8000:8000 --env-file backend/.env alphatest-api
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open `http://127.0.0.1:8000/docs` to confirm the API.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Option B — Python on Windows (recommended for daily dev)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Install **Python 3.12** (64-bit) from [python.org](https://www.python.org/downloads/windows/) and tick **“Add python.exe to PATH”**, **or**:
 
-## Learn More
+   ```powershell
+   winget install Python.Python.3.12
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. Open a **new** terminal and verify:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```powershell
+   py -3.12 --version
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Create a venv and install the backend:
 
-## Deploy on Vercel
+   ```powershell
+   cd backend
+   py -3.12 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Health check (includes DB round-trip): `GET http://127.0.0.1:8000/api/health`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Run the web app
+
+From the **repository root**:
+
+```powershell
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) → **Data Manager** → import each file from `marketdata/` with the matching symbol key (HDFC, ICICI, …).
+
+---
+
+## CI
+
+GitHub Actions runs `python -m compileall` on `backend/app` on each push/PR (`.github/workflows/backend-check.yml`).
+
+---
+
+## Repository
+
+[https://github.com/rp98nt/backtestingengine](https://github.com/rp98nt/backtestingengine)

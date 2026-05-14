@@ -6,13 +6,13 @@ from datetime import datetime
 from typing import Any
 
 from app.engine.events import FillEvent, OrderEvent, SignalEvent
-from app.engine.ring_buffer import RingBuffer
+from app.engine.ring_buffer import RingBuffer, StandardQueueWrapper
 
 
 @dataclass
 class PortfolioManager:
     initial_capital: float
-    ring_buffer: RingBuffer
+    ring_buffer: RingBuffer | StandardQueueWrapper
     cash: float = field(init=False)
     positions: dict[str, float] = field(default_factory=dict)
     position_costs: dict[str, float] = field(default_factory=dict)

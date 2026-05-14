@@ -7,6 +7,11 @@ Full product specification: [`doc/ALPHA_TEST_SPECIFICATION.md`](doc/ALPHA_TEST_S
 
 **Chunk 2:** Event engine (ring buffer, naive / probabilistic fills, SMA crossover) → `POST /api/backtest/run` persists to Neon (`backtest_runs`) → Strategy runner (`/strategy`) and results (`/results/[id]`). The run endpoint completes the backtest in the same request (no background worker yet); the row is created first with `running`, then updated to `completed` or `failed`.
 
+**Chunk 2 (continued):** `POST /api/backtest/compare-fills` runs naive and probabilistic fills on the same data (two persisted runs sharing `comparison_group_id` in `request_config`). `POST /api/benchmark/run` runs the same backtest twice to compare **RingBuffer** vs **queue.Queue** throughput and average `get()` latency. UI: **`/strategy/compare`** for fill comparison.
+
+### Hosted API timeouts (configure on your host)
+
+If you deploy the API behind **strict request time limits** (e.g. some serverless tiers), **`/api/backtest/compare-fills`** and **`/api/benchmark/run`** can exceed the limit because they run **two** full passes over the data. Prefer a container/VM-style host with a generous timeout, **or** narrow `start_date` / `end_date` in the request body. The **single** `POST /api/backtest/run` is lighter.
 ---
 
 ## Prerequisites

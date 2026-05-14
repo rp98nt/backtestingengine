@@ -52,3 +52,28 @@ class BacktestRunResultResponse(BaseModel):
     equity_curve: list[dict]
     trade_log: list[dict]
     engine_metrics: dict[str, Any]
+
+
+class BacktestCompareRequest(BaseModel):
+    strategy: str = Field(default="sma_crossover")
+    symbols: list[str] = Field(default_factory=list)
+    start_date: str | None = None
+    end_date: str | None = None
+    initial_capital: float = Field(default=1_000_000.0, gt=0)
+    strategy_params: dict = Field(default_factory=dict)
+
+
+class BacktestCompareResponse(BaseModel):
+    comparison_group_id: str
+    naive_backtest_id: str
+    probabilistic_backtest_id: str
+    naive_result: dict[str, Any]
+    probabilistic_result: dict[str, Any]
+    comparison: dict[str, float]
+
+
+class BenchmarkRunResponse(BaseModel):
+    ring_buffer: dict[str, float]
+    standard_queue: dict[str, float]
+    speedup_factor: float
+    latency_reduction_pct: float

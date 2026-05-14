@@ -7,15 +7,22 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
-from app.engine.backtesting_engine import BacktestingEngine, build_fill_model
-from app.engine.data_handler import HistoricalDataHandler
-from app.engine.execution_handler import ExecutionHandler
-from app.engine.portfolio import PortfolioManager
 from app.engine.ring_buffer import RingBuffer
-from app.engine.strategies.sma_crossover import SMACrossoverStrategy
 from app.models import BacktestRun
-from app.schemas import BacktestRunRequest, BacktestRunResultResponse, BacktestRunStartResponse
+from app.schemas import (
+    BacktestCompareRequest,
+    BacktestCompareResponse,
+    BacktestRunRequest,
+    BacktestRunResultResponse,
+    BacktestRunStartResponse,
+)
 from app.services.backtest_bars import load_market_events
+from app.services.backtest_runner import (
+    backtest_result_payload,
+    compare_fill_metrics,
+    full_run_view,
+    run_sma_crossover,
+)
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
@@ -26,7 +33,7 @@ async def run_backtest(
     session: AsyncSession = Depends(get_session),
 ) -> BacktestRunStartResponse:
     if body.strategy != "sma_crossover":
-        raise HTTPException(status_code=400, detail="Only strategy sma_crossover is implemented in Chunk 2.")
+        raise HTTPException(status_code=400, detail="Only strategy sma_crossover is implemented.")
     if not body.symbols:
         raise HTTPException(status_code=400, detail="symbols must include at least one instrument key.")
     symbol = body.symbols[0].strip().upper()
@@ -67,15 +74,16 @@ async def run_backtest(
     )
     await session.commit()
 
-    rb = RingBuffer(4096)
-    portfolio = PortfolioManager(initial_capital=body.initial_capital, ring_buffer=rb)
-    strategy = SMACrossoverStrategy(sym, rb, short_window=short_w, long_window=long_w)
-    exec_handler = ExecutionHandler(build_fill_model(body.fill_model))
-    data_handler = HistoricalDataHandler(events)
-    engine = BacktestingEngine(data_handler, strategy, portfolio, exec_handler, rb)
-
     try:
-        bt = engine.run()
+        bt = run_sma_crossover(
+            events,
+            sym,
+            body.initial_capital,
+            short_w,
+            long_w,
+            body.fill_model,
+            RingBuffer(4096),
+        )
     except Exception as e:
         await session.execute(
             update(BacktestRun)
@@ -85,18 +93,7 @@ async def run_backtest(
         await session.commit()
         raise HTTPException(status_code=500, detail=f"Backtest failed: {e}") from e
 
-    result_payload = {
-        "performance_metrics": bt.performance_metrics,
-        "equity_curve": bt.equity_curve,
-        "trade_log": bt.trade_log,
-        "engine_metrics": {
-            "total_bars_processed": bt.total_bars_processed,
-            "total_execution_time_ms": bt.total_execution_time_ms,
-            "ring_buffer_avg_latency_ns": bt.ring_buffer_avg_latency_ns,
-            "ring_buffer_total_puts": bt.ring_buffer_total_puts,
-            "total_events_processed": bt.ring_buffer_total_puts,
-        },
-    }
+    result_payload = backtest_result_payload(bt)
 
     await session.execute(
         update(BacktestRun)
@@ -106,6 +103,115 @@ async def run_backtest(
     await session.commit()
 
     return BacktestRunStartResponse(backtest_id=str(run_id), status="completed")
+
+
+@router.post("/compare-fills", response_model=BacktestCompareResponse)
+async def compare_fills(
+    body: BacktestCompareRequest,
+    session: AsyncSession = Depends(get_session),
+) -> BacktestCompareResponse:
+    if body.strategy != "sma_crossover":
+        raise HTTPException(status_code=400, detail="Only strategy sma_crossover is implemented.")
+    if not body.symbols:
+        raise HTTPException(status_code=400, detail="symbols must include at least one instrument key.")
+    symbol = body.symbols[0].strip().upper()
+
+    try:
+        events, sym = await load_market_events(session, symbol, body.start_date, body.end_date)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    if not events:
+        raise HTTPException(status_code=400, detail="No OHLCV bars in range for this symbol.")
+
+    params = body.strategy_params or {}
+    short_w = int(params.get("short_window", 20))
+    long_w = int(params.get("long_window", 50))
+
+    group_id = str(uuid.uuid4())
+    naive_id = uuid.uuid4()
+    prob_id = uuid.uuid4()
+
+    base_cfg = {
+        "strategy": body.strategy,
+        "symbols": [sym],
+        "start_date": body.start_date,
+        "end_date": body.end_date,
+        "initial_capital": body.initial_capital,
+        "strategy_params": {"short_window": short_w, "long_window": long_w},
+        "comparison_group_id": group_id,
+    }
+
+    cfg_naive = {**base_cfg, "fill_model": "naive", "compare_role": "naive"}
+    cfg_prob = {**base_cfg, "fill_model": "probabilistic", "compare_role": "probabilistic"}
+
+    session.add_all(
+        [
+            BacktestRun(
+                id=naive_id,
+                status="running",
+                strategy=body.strategy,
+                symbol_key=sym,
+                request_config=cfg_naive,
+                result=None,
+                error_message=None,
+            ),
+            BacktestRun(
+                id=prob_id,
+                status="running",
+                strategy=body.strategy,
+                symbol_key=sym,
+                request_config=cfg_prob,
+                result=None,
+                error_message=None,
+            ),
+        ]
+    )
+    await session.commit()
+
+    try:
+        naive_bt = run_sma_crossover(
+            events, sym, body.initial_capital, short_w, long_w, "naive", RingBuffer(4096)
+        )
+        prob_bt = run_sma_crossover(
+            events, sym, body.initial_capital, short_w, long_w, "probabilistic", RingBuffer(4096)
+        )
+    except Exception as e:
+        await session.execute(
+            update(BacktestRun)
+            .where(BacktestRun.id.in_([naive_id, prob_id]))
+            .values(status="failed", error_message=str(e)[:8000])
+        )
+        await session.commit()
+        raise HTTPException(status_code=500, detail=f"Compare backtest failed: {e}") from e
+
+    naive_payload = backtest_result_payload(naive_bt)
+    prob_payload = backtest_result_payload(prob_bt)
+    cmp_metrics = compare_fill_metrics(naive_bt, prob_bt)
+
+    await session.execute(
+        update(BacktestRun)
+        .where(BacktestRun.id == naive_id)
+        .values(status="completed", result=naive_payload, error_message=None)
+    )
+    await session.execute(
+        update(BacktestRun)
+        .where(BacktestRun.id == prob_id)
+        .values(status="completed", result=prob_payload, error_message=None)
+    )
+    await session.commit()
+
+    naive_view = full_run_view(str(naive_id), "completed", cfg_naive, naive_payload)
+    prob_view = full_run_view(str(prob_id), "completed", cfg_prob, prob_payload)
+
+    return BacktestCompareResponse(
+        comparison_group_id=group_id,
+        naive_backtest_id=str(naive_id),
+        probabilistic_backtest_id=str(prob_id),
+        naive_result=naive_view,
+        probabilistic_result=prob_view,
+        comparison=cmp_metrics,
+    )
 
 
 @router.get("/result/{backtest_id}", response_model=BacktestRunResultResponse)

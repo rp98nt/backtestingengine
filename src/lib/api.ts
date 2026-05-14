@@ -95,3 +95,44 @@ export async function fetchBacktestResult(id: string): Promise<{
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+export type BacktestCompareBody = {
+  strategy: "sma_crossover";
+  symbols: string[];
+  start_date?: string | null;
+  end_date?: string | null;
+  initial_capital: number;
+  strategy_params: { short_window?: number; long_window?: number };
+};
+
+export async function compareBacktestFills(body: BacktestCompareBody): Promise<{
+  comparison_group_id: string;
+  naive_backtest_id: string;
+  probabilistic_backtest_id: string;
+  naive_result: Record<string, unknown>;
+  probabilistic_result: Record<string, unknown>;
+  comparison: Record<string, number>;
+}> {
+  const r = await fetch(`${base}/api/backtest/compare-fills`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function runBenchmark(body: BacktestRunBody): Promise<{
+  ring_buffer: Record<string, number>;
+  standard_queue: Record<string, number>;
+  speedup_factor: number;
+  latency_reduction_pct: number;
+}> {
+  const r = await fetch(`${base}/api/benchmark/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

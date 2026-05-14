@@ -34,10 +34,11 @@ export default function Home() {
           </a>
         </div>
         <p className="text-xs text-slate-500">
-          Run Postgres: <code className="text-slate-400">docker compose up -d</code> ·
-          API: <code className="text-slate-400">cd backend && uvicorn app.main:app --reload</code> ·
-          Copy <code className="text-slate-400">.env.example</code> to{" "}
-          <code className="text-slate-400">backend/.env</code> and{" "}
+          Set <code className="text-slate-400">DATABASE_URL</code> in{" "}
+          <code className="text-slate-400">backend/.env</code> (Neon — see{" "}
+          <code className="text-slate-400">.env.example</code>) · API:{" "}
+          <code className="text-slate-400">cd backend && uvicorn app.main:app --reload</code>{" "}
+          · Copy <code className="text-slate-400">.env.example</code> to{" "}
           <code className="text-slate-400">.env.local</code> for the web app.
         </p>
       </main>

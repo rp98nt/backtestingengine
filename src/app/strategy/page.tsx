@@ -84,8 +84,12 @@ export default function StrategyPage() {
         <p className="text-sm">
           <Link href="/strategy/compare" className="text-blue-400 hover:underline">
             Compare naive vs probabilistic fills
+          </Link>
+          {" · "}
+          <Link href="/benchmark" className="text-violet-400 hover:underline">
+            Ring buffer benchmark
           </Link>{" "}
-          (two runs, one request — also persisted as two rows).
+          (Contribution 1 — two engine passes per request).
         </p>
       </header>
 

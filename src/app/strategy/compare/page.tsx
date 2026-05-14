@@ -79,6 +79,10 @@ export default function CompareFillsPage() {
             ← Single run
           </Link>
           {" · "}
+          <Link href="/benchmark" className="text-violet-400 hover:underline">
+            Benchmark
+          </Link>
+          {" · "}
           <Link href="/" className="text-blue-400 hover:underline">
             Home
           </Link>

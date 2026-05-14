@@ -31,7 +31,7 @@ You need **three** cloud pieces: Vercel (UI) + hosted FastAPI + Neon.
 2. In [Render](https://render.com): **New → Blueprint** (or **Web Service**).
 3. If using **Blueprint**, connect the repo; Render reads `render.yaml` at the root.
 4. In the Render service **Environment**, set:
-   - **`DATABASE_URL`** — full Neon URL with `postgresql+asyncpg://…`
+   - **`DATABASE_URL`** — full Neon URL with `postgresql+asyncpg://…` (no `?sslmode=…` or `channel_binding` query params — `asyncpg` rejects them; TLS for `*.neon.tech` is enabled in `backend/app/database.py`.)
    - Optionally **`CORS_ORIGINS`** — your Vercel site URL (comma-separated if several). Optional when using Vercel’s server-side proxy only.
 5. Deploy. Note the service URL, e.g. `https://alphatest-api.onrender.com`.
 

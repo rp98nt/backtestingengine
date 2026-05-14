@@ -28,9 +28,9 @@ If you deploy the API behind **strict request time limits** (e.g. some serverles
 
 1. Copy [`.env.example`](.env.example) to **`backend/.env`** and set **`DATABASE_URL`** to your Neon URL using the **asyncpg** scheme:
 
-   `postgresql+asyncpg://USER:PASSWORD@ep-....neon.tech/neondb?sslmode=require`
+   `postgresql+asyncpg://USER:PASSWORD@ep-....neon.tech/neondb`
 
-   (In the Neon console, copy the connection string and replace `postgresql://` with `postgresql+asyncpg://`.)
+   (In the Neon console, copy the connection string and replace `postgresql://` with `postgresql+asyncpg://`. Remove `?sslmode=...` and other query parameters if Neon added them — `asyncpg` does not accept `sslmode`; this repo enables TLS for Neon hosts in `backend/app/database.py`.)
 
 2. Copy `.env.example` to **`.env.local`** at the repo root (Next.js):
 

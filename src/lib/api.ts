@@ -1,13 +1,33 @@
 import { apiUrl } from "./apiBase";
 
-/** Browser fetch can otherwise hang while Render free tier wakes (~30–90s). */
-const API_FETCH_TIMEOUT_MS = 120_000;
+/** Browser fetch can otherwise hang while Render free tier wakes (~30–120s). */
+const API_FETCH_TIMEOUT_MS = 180_000;
+
+function isAbortLike(e: unknown): boolean {
+  if (typeof DOMException !== "undefined" && e instanceof DOMException) {
+    return e.name === "AbortError" || e.name === "TimeoutError";
+  }
+  if (e instanceof Error) {
+    return (
+      e.name === "AbortError" ||
+      e.name === "TimeoutError" ||
+      /aborted/i.test(e.message)
+    );
+  }
+  return false;
+}
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = apiUrl(path);
+  const method = (init?.method ?? "GET").toUpperCase();
+  const useDefaultTimeout =
+    !init?.signal &&
+    (method === "GET" || method === "HEAD") &&
+    init?.body == null;
+
   let signal = init?.signal;
   if (
-    !signal &&
+    useDefaultTimeout &&
     typeof AbortSignal !== "undefined" &&
     typeof AbortSignal.timeout === "function"
   ) {
@@ -16,10 +36,7 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, { ...init, signal });
   } catch (e) {
-    if (
-      e instanceof Error &&
-      (e.name === "AbortError" || e.name === "TimeoutError")
-    ) {
+    if (isAbortLike(e)) {
       throw new Error(
         `Request timed out after ${API_FETCH_TIMEOUT_MS / 1000}s (${url}). ` +
           `If the API is on Render’s free tier, open your FastAPI /api/health in a new tab to wake the instance, wait until it returns JSON, then refresh this page.`,

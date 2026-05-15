@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Allow Render free-tier cold start when proxying (Vercel caps vary by plan). */
+export const maxDuration = 60;
 
 function backendOrigin(): string | null {
   const raw =

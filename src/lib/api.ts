@@ -1,10 +1,30 @@
 import { apiUrl } from "./apiBase";
 
+/** Browser fetch can otherwise hang while Render free tier wakes (~30–90s). */
+const API_FETCH_TIMEOUT_MS = 120_000;
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = apiUrl(path);
+  let signal = init?.signal;
+  if (
+    !signal &&
+    typeof AbortSignal !== "undefined" &&
+    typeof AbortSignal.timeout === "function"
+  ) {
+    signal = AbortSignal.timeout(API_FETCH_TIMEOUT_MS);
+  }
   try {
-    return await fetch(url, init);
+    return await fetch(url, { ...init, signal });
   } catch (e) {
+    if (
+      e instanceof Error &&
+      (e.name === "AbortError" || e.name === "TimeoutError")
+    ) {
+      throw new Error(
+        `Request timed out after ${API_FETCH_TIMEOUT_MS / 1000}s (${url}). ` +
+          `If the API is on Render’s free tier, open your FastAPI /api/health in a new tab to wake the instance, wait until it returns JSON, then refresh this page.`,
+      );
+    }
     const proxyHint =
       typeof process.env.NEXT_PUBLIC_API_BASE_URL === "string" &&
       process.env.NEXT_PUBLIC_API_BASE_URL.length > 0

@@ -5,6 +5,7 @@
 # https://render.com/docs/infrastructure-as-code
 #
 # First deploy: Render prompts for DATABASE_URL when sync: false (secret).
+# Pushes to the linked branch trigger an automatic redeploy of `alphatest-api`.
 
 services:
   - type: web
